@@ -15,7 +15,7 @@ func _dclCalculateDistance2Tiles(tile1, tile2 string) (float64, int) {
 	t1Coords, t2Coords := strings.Split(tile1, ","), strings.Split(tile2, ",")
 	t1X, _ := strconv.Atoi(t1Coords[0])
 	t1Y, _ := strconv.Atoi(t1Coords[1])
-	t2X, _ := strconv.Atoi(t2Coords[1])
+	t2X, _ := strconv.Atoi(t2Coords[0])
 	t2Y, _ := strconv.Atoi(t2Coords[1])
 	return helpers.EuclidDistance(t1X, t1Y, t2X, t2Y), helpers.ManhattanDistance(t1X, t1Y, t2X, t2Y)
 }
