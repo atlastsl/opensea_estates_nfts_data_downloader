@@ -104,7 +104,7 @@ func (x TilesDistanceDistanceCalc) ParseData(worker *multithread.Worker) {
 
 						err = nil
 						if x.Collection == collections.CollectionDcl {
-							err = dclCalculateTileDistances(x.Collection, addData, mainData, databaseInstance)
+							err = dclCalculateTileDistances(addData, mainData, databaseInstance)
 						}
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
