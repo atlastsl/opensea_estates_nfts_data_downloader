@@ -9,7 +9,6 @@ import (
 	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"reflect"
 )
 
 func getMacroFromDatabase(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*MapMacroAug, error) {
@@ -54,20 +53,22 @@ func getMacroFromDatabase(collection collections.Collection, contract string, db
 	return macroList, nil
 }
 
-func getTilesToWorkFromDatabase(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]string, error) {
+func getTilesToWorkFromDatabase(collection collections.Collection, contract string, dbInstance *mongo.Database) (map[string]*tiles.MapTile, error) {
 	tilesCollection := database.CollectionInstance(dbInstance, &tiles.MapTile{})
-	distinct, err := tilesCollection.Distinct(context.Background(), "coords", bson.M{"contract": contract, "collection": string(collection)})
+	cursor, err := tilesCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection)})
 	if err != nil {
 		return nil, err
 	}
-	tilesIds := helpers.ArrayMap(distinct, func(t any) (bool, string) {
-		if reflect.TypeOf(t).Kind() == reflect.String {
-			return true, t.(string)
-		} else {
-			return false, ""
-		}
-	}, true, "")
-	return tilesIds, nil
+	tilesList := make([]tiles.MapTile, 0)
+	err = cursor.All(context.Background(), &tilesList)
+	if err != nil {
+		return nil, err
+	}
+	tilesMap := make(map[string]*tiles.MapTile)
+	for _, tile := range tilesList {
+		tilesMap[tile.Coords] = &tile
+	}
+	return tilesMap, nil
 }
 
 func fetchTileFromDatabase(collection collections.Collection, contract, coords string, dbInstance *mongo.Database) (*tiles.MapTile, error) {
@@ -88,30 +89,13 @@ func fetchTileFromDatabase(collection collections.Collection, contract, coords s
 func saveTileMacroDistances(distances []*MapTileMacroDistance, dbInstance *mongo.Database) error {
 	if distances != nil && len(distances) > 0 {
 		dbCollection := database.CollectionInstance(dbInstance, &MapTileMacroDistance{})
-		for _, distance := range distances {
-			existing := &MapTileMacroDistance{}
-			err := dbCollection.FirstWithCtx(context.Background(), bson.M{"tile_slug": distance.TileSlug, "macro_slug": distance.MacroSlug}, existing)
-			found := true
-			if err != nil {
-				if !errors.Is(err, mongo.ErrNoDocuments) {
-					return err
-				}
-				found = false
-			}
-			if found {
-				distance.ID = existing.ID
-				distance.CreatedAt = existing.CreatedAt
-				err = dbCollection.UpdateWithCtx(context.Background(), distance)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = dbCollection.CreateWithCtx(context.Background(), distance)
-				if err != nil {
-					return err
-				}
-			}
+		operations := make([]mongo.WriteModel, len(distances))
+		for i, distance := range distances {
+			filterPayload := bson.M{"tile_slug": distance.TileSlug, "macro_slug": distance.MacroSlug}
+			operations[i] = mongo.NewReplaceOneModel().SetFilter(filterPayload).SetReplacement(distance)
 		}
+		_, err := dbCollection.BulkWrite(context.Background(), operations)
+		return err
 	}
 	return nil
 }

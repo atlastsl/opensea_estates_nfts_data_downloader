@@ -1,11 +1,9 @@
 package tiles_distances
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/core/tiles"
 	"decentraland_data_downloader/modules/helpers"
 	"go.mongodb.org/mongo-driver/mongo"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,14 +18,9 @@ func _dclCalculateDistance2Tiles(tile1, tile2 string) (float64, int) {
 	return helpers.EuclidDistance(t1X, t1Y, t2X, t2Y), helpers.ManhattanDistance(t1X, t1Y, t2X, t2Y)
 }
 
-func dclCalculateTileDistances(collection collections.Collection, addData, mainData any, dbInstance *mongo.Database) error {
+func dclCalculateTileDistances(addData, mainData any, dbInstance *mongo.Database) error {
 	macroList := addData.([]*MapMacroAug)
-	tileId := mainData.(string)
-
-	tile, err := fetchTileFromDatabase(collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), tileId, dbInstance)
-	if err != nil {
-		return err
-	}
+	tile := mainData.(*tiles.MapTile)
 
 	var distances = make([]*MapTileMacroDistance, len(macroList))
 	for i, macroAug := range macroList {
@@ -51,6 +44,6 @@ func dclCalculateTileDistances(collection collections.Collection, addData, mainD
 		}
 	}
 
-	err = saveTileMacroDistances(distances, dbInstance)
+	err := saveTileMacroDistances(distances, dbInstance)
 	return err
 }
