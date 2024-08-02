@@ -92,7 +92,7 @@ func saveTileMacroDistances(distances []*MapTileMacroDistance, dbInstance *mongo
 		operations := make([]mongo.WriteModel, len(distances))
 		for i, distance := range distances {
 			filterPayload := bson.M{"tile_slug": distance.TileSlug, "macro_slug": distance.MacroSlug}
-			operations[i] = mongo.NewReplaceOneModel().SetFilter(filterPayload).SetReplacement(distance)
+			operations[i] = mongo.NewReplaceOneModel().SetFilter(filterPayload).SetReplacement(distance).SetUpsert(true)
 		}
 		_, err := dbCollection.BulkWrite(context.Background(), operations)
 		return err
