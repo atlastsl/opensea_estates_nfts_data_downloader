@@ -9,9 +9,10 @@ import (
 	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"slices"
 )
 
-func getMacroFromDatabase(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*MapMacroAug, error) {
+func getMacroFromDatabase(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*MapTMacroAug, error) {
 	macrosCollection := database.CollectionInstance(dbInstance, &tiles.MapMacro{})
 	find, err := macrosCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection)})
 	if err != nil {
@@ -26,6 +27,13 @@ func getMacroFromDatabase(collection collections.Collection, contract string, db
 	if err != nil {
 		return nil, err
 	}
+	macroTypes := make([]string, 0)
+	for _, macro := range macros {
+		if !slices.Contains(macroTypes, macro.Type) {
+			macroTypes = append(macroTypes, macro.Type)
+		}
+	}
+
 	tilesCollection := database.CollectionInstance(dbInstance, &tiles.MapTile{})
 	find, err = tilesCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection), "inside": bson.M{"$exists": true, "$ne": nil}})
 	if err != nil {
@@ -40,16 +48,24 @@ func getMacroFromDatabase(collection collections.Collection, contract string, db
 	if err != nil {
 		return nil, err
 	}
-	var macroList = make([]*MapMacroAug, 0)
-	for _, macro := range macros {
-		tilesList := helpers.ArrayFilter(_tiles, func(tile tiles.MapTile) bool {
-			return macro.ID.String() == tile.Inside.String()
+	var macroList = make([]*MapTMacroAug, len(macroTypes))
+	for i, macroType := range macroTypes {
+		tMacros := helpers.ArrayFilter(macros, func(macro tiles.MapMacro) bool {
+			return macro.Type == macroType
 		})
-		tilesIds := helpers.ArrayMap(tilesList, func(t tiles.MapTile) (bool, string) {
-			return true, t.Coords
-		}, true, "")
-		macroList = append(macroList, &MapMacroAug{Macro: &macro, Tiles: tilesIds})
+		var tMacroList = make([]*MapMacroAug, 0)
+		for _, tMacro := range tMacros {
+			tilesList := helpers.ArrayFilter(_tiles, func(tile tiles.MapTile) bool {
+				return tMacro.ID.String() == tile.Inside.String()
+			})
+			tilesIds := helpers.ArrayMap(tilesList, func(t tiles.MapTile) (bool, string) {
+				return true, t.Coords
+			}, true, "")
+			tMacroList = append(tMacroList, &MapMacroAug{Macro: &tMacro, Tiles: tilesIds})
+		}
+		macroList[i] = &MapTMacroAug{MacroType: macroType, MacrosAug: tMacroList}
 	}
+
 	return macroList, nil
 }
 

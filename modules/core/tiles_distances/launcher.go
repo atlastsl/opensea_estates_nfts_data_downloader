@@ -5,6 +5,7 @@ import (
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
+	"fmt"
 	"os"
 	"reflect"
 	"sync"
@@ -104,9 +105,11 @@ func (x TilesDistanceDistanceCalc) ParseData(worker *multithread.Worker, wg *syn
 						addData, mainData := niMap["addData"], niMap["mainData"]
 
 						err = nil
+						nbDistances := 0
 						if x.Collection == collections.CollectionDcl {
-							err = dclCalculateTileDistances(addData, mainData, databaseInstance, wg)
+							nbDistances, err = dclCalculateTileDistances(addData, mainData, databaseInstance, wg)
 						}
+						worker.LoggingExtra(fmt.Sprintf("Tile %s : %d distances relevant", task, nbDistances))
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

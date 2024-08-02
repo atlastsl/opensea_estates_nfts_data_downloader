@@ -21,3 +21,8 @@ type MapMacroAug struct {
 	Macro *tiles.MapMacro
 	Tiles []string
 }
+
+type MapTMacroAug struct {
+	MacroType string
+	MacrosAug []*MapMacroAug
+}
