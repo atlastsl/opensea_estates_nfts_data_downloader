@@ -21,6 +21,7 @@ func saveMacroInDatabase(macro *MapMacro, dbInstance *mongo.Database) (*MapMacro
 	}
 	if found {
 		macro.ID = existing.ID
+		macro.CreatedAt = existing.CreatedAt
 		err = dbCollection.UpdateWithCtx(context.Background(), macro)
 		return existing, err
 	} else {
@@ -42,6 +43,7 @@ func saveTileInDatabase(tile *MapTile, dbInstance *mongo.Database) error {
 	}
 	if found {
 		tile.ID = existing.ID
+		tile.CreatedAt = existing.CreatedAt
 		err = dbCollection.UpdateWithCtx(context.Background(), tile)
 		return err
 	} else {

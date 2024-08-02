@@ -100,6 +100,7 @@ func saveTileMacroDistances(distances []*MapTileMacroDistance, dbInstance *mongo
 			}
 			if found {
 				distance.ID = existing.ID
+				distance.CreatedAt = existing.CreatedAt
 				err = dbCollection.UpdateWithCtx(context.Background(), distance)
 				if err != nil {
 					return err
