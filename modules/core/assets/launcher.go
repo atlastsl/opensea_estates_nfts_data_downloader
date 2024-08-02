@@ -66,7 +66,7 @@ func (x EstateAssetMainDataGetter) FetchData(worker *multithread.Worker) {
 				data = mapData
 			}
 
-			multithread.PublishDataNotification(worker, data, err)
+			multithread.PublishDataNotification(worker, helpers.AnytiseData(data), err)
 			if err != nil {
 				worker.LoggingError("Error when getting data !", err)
 				flag = true
@@ -87,7 +87,7 @@ type EstateAssetDataParser struct {
 	Collection collections.Collection
 }
 
-func (x EstateAssetDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
+func (x EstateAssetDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
 	flag := false
 
 	databaseInstance, err := database.NewDatabaseConnection()
@@ -110,12 +110,12 @@ func (x EstateAssetDataParser) ParseData(worker *multithread.Worker, _ *sync.Wai
 				} else if task == "" {
 					flag = true
 				} else if nextInput != nil {
-					if reflect.TypeOf(nextInput).Kind() == reflect.String {
+					if reflect.TypeOf(nextInput).Kind() == reflect.Map {
 						niMap := nextInput.(map[string]any)
 						mainData := niMap["mainData"]
 						osAssetInfo := mainData.(*helpers.OpenseaNftAsset)
 
-						err = parseEstateAssetInfo(osAssetInfo, databaseInstance)
+						err = parseEstateAssetInfo(osAssetInfo, databaseInstance, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

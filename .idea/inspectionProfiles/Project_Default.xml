@@ -4,6 +4,7 @@
     <inspection_tool class="GoDfaErrorMayBeNotNil" enabled="true" level="WARNING" enabled_by_default="true">
       <functions>
         <function importPath="decentraland_data_downloader/modules/core/tiles" name="saveMacroInDatabase" />
+        <function importPath="decentraland_data_downloader/modules/core/assets" name="dclParseEstateAssetInfoEstate" />
       </functions>
     </inspection_tool>
   </profile>

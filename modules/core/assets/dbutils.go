@@ -6,21 +6,18 @@ import (
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/core/tiles"
 	"decentraland_data_downloader/modules/core/tiles_distances"
-	"errors"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func fetchTileFromDatabase(collection collections.Collection, contract, coords string, dbInstance *mongo.Database) (*tiles.MapTile, error) {
 	tile := &tiles.MapTile{}
 	tilesCollection := database.CollectionInstance(dbInstance, tile)
-	err := tilesCollection.First(bson.M{"contract": contract, "collection": string(collection), "coords": coords}, tile)
+	err := tilesCollection.FirstWithCtx(context.Background(), bson.M{"contract": contract, "collection": string(collection), "coords": coords}, tile)
 	if err != nil {
-		if !errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, err
-		} else {
-			return nil, nil
-		}
+		return nil, err
 	} else {
 		return tile, nil
 	}
@@ -45,64 +42,39 @@ func fetchTileMacroDistances(tile *tiles.MapTile, dbInstance *mongo.Database) ([
 	return distances, nil
 }
 
-func saveEstateAssetInDatabase(asset *EstateAsset, dbInstance *mongo.Database) error {
+func saveEstateAssetInDatabase(asset *EstateAsset, dbInstance *mongo.Database) (primitive.ObjectID, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &EstateAsset{})
-	existing := &EstateAsset{}
-	err := dbCollection.First(bson.M{"identifier": asset.Identifier, "collection": asset.Collection, "contract": asset.Contract}, existing)
-	found := true
+	filterPayload := bson.M{"identifier": asset.Identifier, "collection": asset.Collection, "contract": asset.Contract}
+	rpOptions := &options.FindOneAndReplaceOptions{}
+	rpOptions.SetUpsert(true)
+	res := dbCollection.FindOneAndReplace(context.Background(), filterPayload, asset, rpOptions)
+	if res.Err() != nil {
+		return primitive.ObjectID{}, res.Err()
+	}
+	updatedDoc := &EstateAsset{}
+	err := res.Decode(updatedDoc)
 	if err != nil {
-		if !errors.Is(err, mongo.ErrNoDocuments) {
-			return err
-		}
-		found = false
+		return primitive.ObjectID{}, err
 	}
-	if found {
-		asset.ID = existing.ID
-		err = dbCollection.Update(asset)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = dbCollection.Create(asset)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return updatedDoc.ID, nil
 }
 
-func saveEstateMetadataInDatabase(assetMetadata []*EstateAssetMetadata, dbInstance *mongo.Database) error {
+func saveEstateMetadataInDatabase(assetMetadata []*EstateAssetMetadata, assetId primitive.ObjectID, dbInstance *mongo.Database) error {
 	if assetMetadata != nil && len(assetMetadata) > 0 {
 		dbCollection := database.CollectionInstance(dbInstance, &EstateAssetMetadata{})
-		for _, metadata := range assetMetadata {
-			existing := &EstateAssetMetadata{}
-			var payload bson.M
+		operations := make([]mongo.WriteModel, len(assetMetadata))
+		for i, metadata := range assetMetadata {
+			metadata.EstateAssetRef = assetId
+			var filterPayload bson.M
 			if !metadata.MacroRef.IsZero() {
-				payload = bson.M{"macro": metadata.MacroRef, "estate_asset": metadata.EstateAssetRef}
+				filterPayload = bson.M{"macro": metadata.MacroRef, "estate_asset": metadata.EstateAssetRef}
 			} else {
-				payload = bson.M{"estate_asset": metadata.EstateAssetRef}
+				filterPayload = bson.M{"estate_asset": metadata.EstateAssetRef}
 			}
-			err := dbCollection.First(payload, existing)
-			found := true
-			if err != nil {
-				if !errors.Is(err, mongo.ErrNoDocuments) {
-					return err
-				}
-				found = false
-			}
-			if found {
-				metadata.ID = existing.ID
-				err = dbCollection.Update(metadata)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = dbCollection.Create(metadata)
-				if err != nil {
-					return err
-				}
-			}
+			operations[i] = mongo.NewReplaceOneModel().SetFilter(filterPayload).SetReplacement(metadata).SetUpsert(true)
 		}
+		_, err := dbCollection.BulkWrite(context.Background(), operations)
+		return err
 	}
 	return nil
 }

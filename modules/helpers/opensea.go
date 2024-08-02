@@ -18,7 +18,7 @@ type OpenseaNftAsset struct {
 	DisplayImageUrl     *string `json:"display_image_url"`
 	DisplayAnimationUrl *string `json:"display_animation_url"`
 	MetadataUrl         *string `json:"metadata_url"`
-	OpenseaUrl          *string `json:"opensea_uri"`
+	OpenseaUrl          *string `json:"opensea_url"`
 	UpdatedAt           *string `json:"updated_at"`
 	IsDisabled          *bool   `json:"is_disabled"`
 	IsNSFW              *bool   `json:"is_nsfw"`

@@ -34,8 +34,9 @@ func readFlags() (*string, *string, *int, bool) {
 	flag.Usage = usage
 	flag.Parse()
 
-	// go run main.go -x decentraland -t tiles
-	// go run main.go -x decentraland -t tiles_distances
+	// go run main.go -x decentraland -t tiles -n 1
+	// go run main.go -x decentraland -t tiles_distances -n 1
+	// go run main.go -x decentraland -t estates_assets -n 1
 
 	if *collection == "" {
 		showUsageAndExit(0)

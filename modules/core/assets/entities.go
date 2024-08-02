@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/kamva/mgm/v3"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"strings"
 	"time"
 )
 
@@ -31,6 +30,8 @@ type EstateAsset struct {
 	Name             string            `bson:"name,omitempty"`
 	Description      string            `bson:"description,omitempty"`
 	Type             string            `bson:"type,omitempty"`
+	X                int               `bson:"x,omitempty"`
+	Y                int               `bson:"y,omitempty"`
 	Images           EstateAssetImages `bson:"images,omitempty"`
 	Urls             EstateAssetUrls   `bson:"urls,omitempty"`
 	IsDisabled       bool              `bson:"is_disabled"`
@@ -50,7 +51,6 @@ type EstateAssetMetadata struct {
 	MacroRef         primitive.ObjectID `bson:"macro,omitempty"`
 	MacroType        string             `bson:"macro_type,omitempty"`
 	UpdateDate       time.Time          `bson:"update_date,omitempty"`
-	EventRef         primitive.ObjectID `bson:"event,omitempty"`
 }
 
 const (
@@ -83,8 +83,7 @@ func DistanceMetadataName(distance *tiles_distances.MapTileMacroDistance) string
 }
 
 func DistanceMetadataDisplayName(distance *tiles_distances.MapTileMacroDistance) string {
-	tmp := strings.Split(distance.MacroSlug, "-")
-	return fmt.Sprintf("Distance to %s", tmp[2])
+	return fmt.Sprintf("Distance to %s", distance.MacroSlug)
 }
 
 const (
