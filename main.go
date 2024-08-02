@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"os"
+	"strings"
 )
 
 func usage() {
@@ -24,48 +25,56 @@ func showUsageAndExit(exitCode int) {
 	os.Exit(exitCode)
 }
 
-func readFlags() (*string, *string, bool) {
+func readFlags() (*string, *string, *int, bool) {
 	var collection = flag.String("x", "", "Collection (Decentraland | TheSandbox)")
-	var data = flag.String("x", "", "Data Type (tiles | parcels | estates)")
+	var dataType = flag.String("t", "", "Data Type (tiles | parcels | estates)")
+	var nbParsers = flag.Int("n", 1, "Nb Parsers (>0)")
 	var envFilePath = flag.String("c", ".env", "Env File Path")
 	log.SetFlags(0)
 	flag.Usage = usage
 	flag.Parse()
 
+	// go run main.go -x decentraland -t tiles
+	// go run main.go -x decentraland -t tiles_distances
+
 	if *collection == "" {
 		showUsageAndExit(0)
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
-	if *data == "" {
+	if *dataType == "" {
 		showUsageAndExit(0)
-		return nil, nil, false
+		return nil, nil, nil, false
+	}
+	if *nbParsers < 0 {
+		showUsageAndExit(0)
+		return nil, nil, nil, false
 	}
 	err := godotenv.Load(*envFilePath)
 	if err != nil {
 		log.Fatalf("Fail to load %s env file", *envFilePath)
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 
-	return collection, data, true
+	return collection, dataType, nbParsers, true
 }
 
 func main() {
 	defer multithread.Recovery()
-	collection, dataType, ok := readFlags()
+	collection, dataType, nbParsers, ok := readFlags()
 	if !ok {
 		os.Exit(0)
 	}
 	if *dataType == tiles.TileArgument {
-		tiles.Launch(*collection, 5)
+		tiles.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == tiles_distances.TileDistancesArgument {
-		tiles_distances.Launch(*collection, 5)
+		tiles_distances.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == assets.EstatesAssetsArguments {
-		assets.Launch(*collection, 5)
+		assets.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == eth_events.EthEventsArguments {
-		eth_events.Launch(*collection, 5)
+		eth_events.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == ops_events.OpsEventsArguments {
-		ops_events.Launch(*collection, 5)
+		ops_events.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == movements.AssetsMovementsArguments {
-		movements.Launch(*collection, 5)
+		movements.Launch(strings.ToLower(*collection), *nbParsers)
 	}
 }

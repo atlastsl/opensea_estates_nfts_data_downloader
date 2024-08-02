@@ -11,7 +11,8 @@ import (
 
 func NewDatabaseConnection() (database *mongo.Database, err error) {
 	_options := options.Client().ApplyURI(os.Getenv("DATABASE_URL"))
-	client, err := mgm.NewClient(_options)
+	//client, err := mgm.NewClient(_options)
+	client, err := mongo.Connect(context.Background(), _options)
 	if err != nil {
 		return nil, err
 	}

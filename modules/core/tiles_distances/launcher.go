@@ -4,6 +4,7 @@ import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/helpers"
 	"os"
 	"reflect"
 	"time"
@@ -20,15 +21,20 @@ func (x TilesDistanceAddDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = nil
 	var err error = nil
 
+	worker.LoggingExtra("Connecting to database...")
 	databaseInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		worker.LoggingError("Failed to connect to database !", err)
-	} else {
-		defer database.CloseDatabaseConnection(databaseInstance)
-		if x.Collection == collections.CollectionDcl {
-			data, err = getMacroFromDatabase(x.Collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), dclTilesTypes, databaseInstance)
-		}
+		return
 	}
+	defer database.CloseDatabaseConnection(databaseInstance)
+	worker.LoggingExtra("Connected to database successfully !")
+
+	worker.LoggingExtra("Fetching Macro data from database...")
+	if x.Collection == collections.CollectionDcl {
+		data, err = getMacroFromDatabase(x.Collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), databaseInstance)
+	}
+	worker.LoggingExtra("Macro data fetched from database. Publishing data...")
 
 	multithread.PublishDataNotification(worker, data, err)
 	multithread.PublishDoneNotification(worker)
@@ -43,17 +49,22 @@ func (x TilesDistanceMainDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = nil
 	var err error = nil
 
+	worker.LoggingExtra("Connecting to database...")
 	databaseInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		worker.LoggingError("Failed to connect to database !", err)
-	} else {
-		defer database.CloseDatabaseConnection(databaseInstance)
-		if x.Collection == collections.CollectionDcl {
-			data, err = getTilesToWorkFromDatabase(x.Collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), databaseInstance)
-		}
+		return
 	}
+	defer database.CloseDatabaseConnection(databaseInstance)
+	worker.LoggingExtra("Connected to database successfully !")
 
-	multithread.PublishDataNotification(worker, data, err)
+	worker.LoggingExtra("Fetching Tiles Ids from database...")
+	if x.Collection == collections.CollectionDcl {
+		data, err = getTilesToWorkFromDatabase(x.Collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), databaseInstance)
+	}
+	worker.LoggingExtra("Tiles Ids fetched from database. Publishing data...")
+
+	multithread.PublishDataNotification(worker, helpers.AnytiseData(data), err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -64,13 +75,16 @@ type TilesDistanceDistanceCalc struct {
 func (x TilesDistanceDistanceCalc) ParseData(worker *multithread.Worker) {
 	flag := false
 
+	worker.LoggingExtra("Connecting to database...")
 	databaseInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		worker.LoggingError("Failed to connect to database !", err)
 		return
 	}
 	defer database.CloseDatabaseConnection(databaseInstance)
+	worker.LoggingExtra("Connected to database successfully !")
 
+	worker.LoggingExtra("Starting parser loop...")
 	if worker.NextCursor != nil {
 		for !flag {
 
@@ -84,7 +98,7 @@ func (x TilesDistanceDistanceCalc) ParseData(worker *multithread.Worker) {
 				} else if task == "" {
 					flag = true
 				} else if nextInput != nil {
-					if reflect.TypeOf(nextInput).Kind() == reflect.String {
+					if reflect.TypeOf(nextInput).Kind() == reflect.Map {
 						niMap := nextInput.(map[string]any)
 						addData, mainData := niMap["addData"], niMap["mainData"]
 

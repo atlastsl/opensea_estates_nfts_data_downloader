@@ -29,10 +29,10 @@ func dclCalculateTileDistances(collection collections.Collection, addData, mainD
 		return err
 	}
 
-	var distances = make([]*MapTileMacroDistance, 0, len(macroList))
+	var distances = make([]*MapTileMacroDistance, len(macroList))
 	for i, macroAug := range macroList {
-		eucDistances := make([]float64, 0, len(macroAug.Tiles))
-		manDistances := make([]int, 0, len(macroAug.Tiles))
+		eucDistances := make([]float64, len(macroAug.Tiles))
+		manDistances := make([]int, len(macroAug.Tiles))
 		for j, tile2 := range macroAug.Tiles {
 			eucD, manD := _dclCalculateDistance2Tiles(tile.Coords, tile2)
 			eucDistances[j] = eucD

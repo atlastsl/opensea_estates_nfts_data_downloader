@@ -1,8 +1,11 @@
 package logger
 
 import (
+	"decentraland_data_downloader/modules/core/collections"
+	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
 var consoleOutLogger *log.Logger
@@ -28,8 +31,16 @@ func CloseLogger() {
 	}
 }
 
-func createLoggers() {
-	fileOutPath, fileErrPath := os.Getenv("LOGS_FILE"), os.Getenv("ERROR_LOGS_FILE")
+func createLoggers(collection collections.Collection, purpose string) {
+	mainLogsDir := os.Getenv("LOGS_DIR")
+	currentLogsDir := fmt.Sprintf("%s%s%s_%s_%d", mainLogsDir, string(os.PathSeparator), string(collection), purpose, time.Now().UnixMilli())
+
+	fileOutPath, fileErrPath := "", ""
+	e0 := os.Mkdir(currentLogsDir, 0777)
+	if e0 == nil {
+		fileOutPath = currentLogsDir + string(os.PathSeparator) + "out.log"
+		fileErrPath = currentLogsDir + string(os.PathSeparator) + "err.log"
+	}
 
 	if fileOutPath != "" {
 		f, err := os.OpenFile(fileOutPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -59,8 +70,8 @@ func createLoggers() {
 	}
 }
 
-func InitializeLogger() {
-	createLoggers()
+func InitializeLogger(collection collections.Collection, purpose string) {
+	createLoggers(collection, purpose)
 }
 
 func Info(message string) {

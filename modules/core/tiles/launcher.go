@@ -4,6 +4,7 @@ import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/helpers"
 	"reflect"
 	"time"
 )
@@ -18,9 +19,11 @@ func (d *MapTileAddDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = nil
 	var err error = nil
 
+	worker.LoggingExtra("Fetching districts data...")
 	if d.Collection == collections.CollectionDcl {
 		data, err = getDclDistrictData()
 	}
+	worker.LoggingExtra("Districts data fetched. Publishing data...")
 
 	multithread.PublishDataNotification(worker, data, err)
 	multithread.PublishDoneNotification(worker)
@@ -34,11 +37,13 @@ func (d MapTileMainDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = nil
 	var err error = nil
 
+	worker.LoggingExtra("Fetching tiles data...")
 	if d.Collection == collections.CollectionDcl {
 		data, err = getDclTilesData()
 	}
+	worker.LoggingExtra("Tiles data fetched. Publishing data...")
 
-	multithread.PublishDataNotification(worker, data, err)
+	multithread.PublishDataNotification(worker, helpers.AnytiseData(data), err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -49,13 +54,16 @@ type MapTileParser struct {
 func (m MapTileParser) ParseData(worker *multithread.Worker) {
 	flag := false
 
+	worker.LoggingExtra("Connecting to database...")
 	databaseInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		worker.LoggingError("Failed to connect to database !", err)
 		return
 	}
 	defer database.CloseDatabaseConnection(databaseInstance)
+	worker.LoggingExtra("Connected to database successfully !")
 
+	worker.LoggingExtra("Starting parser loop...")
 	if worker.NextCursor != nil {
 		for !flag {
 

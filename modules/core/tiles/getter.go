@@ -16,8 +16,9 @@ func getDclDistrictData() ([]DclMapDistrict, error) {
 	return resDistricts.Data, nil
 }
 
-func getDclTilesData() (DclMapTiles, error) {
+func getDclTilesData() (map[string]DclMapTile, error) {
 	urlTiles := "https://api.decentraland.org/v2/tiles?include=id,x,y,type,estateId,name"
+	//urlTiles := "https://api.decentraland.org/v2/tiles?include=id,x,y,type,estateId,name&x1=10&y1=10&x2=50&y2=50"
 	jsonResTiles, err := helpers.FetchData(urlTiles, "")
 	if err != nil {
 		return nil, err

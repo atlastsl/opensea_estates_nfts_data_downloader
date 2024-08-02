@@ -12,7 +12,7 @@ import (
 	"reflect"
 )
 
-func getMacroFromDatabase(collection collections.Collection, contract string, tilesTypes []string, dbInstance *mongo.Database) ([]*MapMacroAug, error) {
+func getMacroFromDatabase(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*MapMacroAug, error) {
 	macrosCollection := database.CollectionInstance(dbInstance, &tiles.MapMacro{})
 	find, err := macrosCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection)})
 	if err != nil {
@@ -28,7 +28,7 @@ func getMacroFromDatabase(collection collections.Collection, contract string, ti
 		return nil, err
 	}
 	tilesCollection := database.CollectionInstance(dbInstance, &tiles.MapTile{})
-	find, err = tilesCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection), "type": bson.M{"$in": helpers.BSONStringA(tilesTypes)}})
+	find, err = tilesCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection), "inside": bson.M{"$exists": true, "$ne": nil}})
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func getTilesToWorkFromDatabase(collection collections.Collection, contract stri
 func fetchTileFromDatabase(collection collections.Collection, contract, coords string, dbInstance *mongo.Database) (*tiles.MapTile, error) {
 	tile := &tiles.MapTile{}
 	tilesCollection := database.CollectionInstance(dbInstance, tile)
-	err := tilesCollection.First(bson.M{"contract": contract, "collection": string(collection), "coords": coords}, tile)
+	err := tilesCollection.FirstWithCtx(context.Background(), bson.M{"contract": contract, "collection": string(collection), "coords": coords}, tile)
 	if err != nil {
 		if !errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, err
@@ -90,7 +90,7 @@ func saveTileMacroDistances(distances []*MapTileMacroDistance, dbInstance *mongo
 		dbCollection := database.CollectionInstance(dbInstance, &MapTileMacroDistance{})
 		for _, distance := range distances {
 			existing := &MapTileMacroDistance{}
-			err := dbCollection.First(bson.M{"tile_slug": distance.TileSlug, "macro_slug": distance.MacroSlug}, existing)
+			err := dbCollection.FirstWithCtx(context.Background(), bson.M{"tile_slug": distance.TileSlug, "macro_slug": distance.MacroSlug}, existing)
 			found := true
 			if err != nil {
 				if !errors.Is(err, mongo.ErrNoDocuments) {
@@ -100,12 +100,12 @@ func saveTileMacroDistances(distances []*MapTileMacroDistance, dbInstance *mongo
 			}
 			if found {
 				distance.ID = existing.ID
-				err = dbCollection.Update(distance)
+				err = dbCollection.UpdateWithCtx(context.Background(), distance)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = dbCollection.Create(distance)
+				err = dbCollection.CreateWithCtx(context.Background(), distance)
 				if err != nil {
 					return err
 				}

@@ -137,7 +137,7 @@ func dclSaveUpdatesItemAsMetadata(updates *EstateAssetUpdates, dbInstance *mongo
 				return err
 			}
 			newLandsTilesSlugs := helpers.ArrayMap(newLands, func(t string) (bool, string) {
-				return true, fmt.Sprintf("%s-%s-%s", string(collections.CollectionDcl), os.Getenv("DECENTRALAND_LAND_CONTRACT"), t)
+				return true, fmt.Sprintf("%s|%s|%s", string(collections.CollectionDcl), os.Getenv("DECENTRALAND_LAND_CONTRACT"), t)
 			}, true, "")
 			if len(allMacros) > 0 {
 				for _, macro := range allMacros {

@@ -59,7 +59,7 @@ var AdditionalDataNotifier WorkerNotifier = func(notification *WorkerNotificatio
 			worker.loggingDataPublished(addDataIndex, notification.Err)
 		} else if notification.Type == WorkerNotificationTypeDone {
 			addDataDone = true
-			worker.loggingFinished()
+			worker.loggingAllDataPublished()
 		}
 	}
 }
@@ -91,10 +91,13 @@ var MainDataNotifier WorkerNotifier = func(notification *WorkerNotification, wor
 						}
 					}
 				} else if reflect.TypeOf(notification.Data).Kind() == reflect.Slice {
-					for _, key := range notification.Data.([]string) {
-						if (tasksSucceeded == nil || !slices.Contains(tasksSucceeded, key)) && (tasksFailed == nil || !slices.Contains(tasksFailed, key)) {
-							tasks = append(tasks, key)
-							mainData[key] = key
+					for _, _key := range notification.Data.([]any) {
+						if reflect.TypeOf(_key).Kind() == reflect.String {
+							key := _key.(string)
+							if (tasksSucceeded == nil || !slices.Contains(tasksSucceeded, key)) && (tasksFailed == nil || !slices.Contains(tasksFailed, key)) {
+								tasks = append(tasks, key)
+								mainData[key] = key
+							}
 						}
 					}
 				}
@@ -102,6 +105,7 @@ var MainDataNotifier WorkerNotifier = func(notification *WorkerNotification, wor
 			worker.loggingDataPublished(mainDataIndex, notification.Err)
 		} else if notification.Type == WorkerNotificationTypeDone {
 			mainDataDone = true
+			worker.loggingAllDataPublished()
 		}
 	}
 }
@@ -143,6 +147,7 @@ var ParserWorkerNextCursor WorkerNextCursor = func(worker *Worker) (shouldWaitMo
 	nextInput = nil
 	if addDataDone {
 		if tasks != nil && len(tasks) > 0 {
+			shouldWaitMoreData = false
 			outTask := tasks[0]
 			tasks = tasks[1:]
 			nextData := make(map[string]any)
@@ -172,15 +177,16 @@ func launch(workers []*Worker) {
 	var workerWg sync.WaitGroup
 	for i := 0; i < len(workers); i++ {
 		workerWg.Add(1)
-		go workers[i].work()
+		go workers[i].work(&workerWg)
 	}
 	go listenInterrupt()
 	workerWg.Wait()
-	forceInterrupt()
 	logger.Info(fmt.Sprintf("[Workers (%d workers)] - Workers jobs all Done", len(workers)))
 }
 
 func Launch(collection collections.Collection, addDataJob, mainDataJob WorkerGetterJob, writerJob WorkerParserJob, nbParsers int, workTitle string, workerTitles []string, workerDescriptions []string) {
+	logger.InitializeLogger(collection, workTitle)
+
 	logger.Info(fmt.Sprintf("%s", workTitle))
 	logger.Info("--------------------------------------------------------------")
 	logger.Info(fmt.Sprintf("%s - Build workers", workTitle))
@@ -200,7 +206,7 @@ func Launch(collection collections.Collection, addDataJob, mainDataJob WorkerGet
 	gMainDataWorker := NewWorker(
 		WorkerTypeGetter,
 		fmt.Sprintf("<%s> %s", string(collection), workerTitles[1]),
-		1,
+		2,
 		fmt.Sprintf("<%s> %s", string(collection), workerDescriptions[1]),
 		mainDataJob,
 		nil,
@@ -214,7 +220,7 @@ func Launch(collection collections.Collection, addDataJob, mainDataJob WorkerGet
 		parserWorkerI := NewWorker(
 			WorkerTypeParser,
 			fmt.Sprintf("<%s> %s", string(collection), workerTitles[2]),
-			1,
+			int8(i+1),
 			fmt.Sprintf("<%s> %s", string(collection), workerDescriptions[2]),
 			nil,
 			writerJob,
@@ -235,6 +241,8 @@ func Launch(collection collections.Collection, addDataJob, mainDataJob WorkerGet
 	logger.Info("--------------------------------------------------------------")
 	logger.Info(fmt.Sprintf("%s - DONE", workTitle))
 	logger.Info("--------------------------------------------------------------")
+
+	forceInterrupt()
 }
 
 func closeApp(closeMsg *string) {
@@ -242,6 +250,8 @@ func closeApp(closeMsg *string) {
 	defer interruptedLocker.Unlock()
 	interruptReason = *closeMsg
 	interrupted = true
+	logger.CloseLogger()
+	os.Exit(0)
 }
 
 func interruptHandlerFunc() {

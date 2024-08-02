@@ -3,6 +3,8 @@ package multithread
 import (
 	"decentraland_data_downloader/modules/logger"
 	"fmt"
+	"sync"
+	"time"
 )
 
 type WorkerType string
@@ -79,7 +81,7 @@ func NewWorker(wType WorkerType, name string, index int8, title string, gJob Wor
 }
 
 func (w *Worker) loggingPrefix() string {
-	return fmt.Sprintf("[%s - %d / %s (%s)]", string(w.Type), w.Index, w.Name, w.Title)
+	return fmt.Sprintf("[%s] [%s - %d / %s (%s)]", time.Now().Format(time.RFC3339), string(w.Type), w.Index, w.Name, w.Title)
 }
 
 func (w *Worker) loggingMessage(message string) {
@@ -110,10 +112,15 @@ func (w *Worker) loggingDataPublished(num uint8, err error) {
 	}
 }
 
+func (w *Worker) loggingAllDataPublished() {
+	logMessage := fmt.Sprintf("Data publishing all Done !")
+	w.loggingMessage(logMessage)
+}
+
 func (w *Worker) loggingTaskBeginning(shouldWaitMoreData bool, task string) {
 	logMessage := ""
 	if shouldWaitMoreData {
-		logMessage = "Should wait a little bit for getter to fetch data"
+		logMessage = fmt.Sprintf("Should wait a little bit for getter to fetch data...")
 	} else {
 		logMessage = fmt.Sprintf("Task beginning (Task = %s)", task)
 	}
@@ -142,7 +149,7 @@ func (w *Worker) LoggingError(message string, err error) {
 	w.loggingError(message, err)
 }
 
-func (w *Worker) work() {
+func (w *Worker) work(wg *sync.WaitGroup) {
 	w.loggingStart()
 	if w.Type == WorkerTypeGetter {
 		w.gJob.FetchData(w)
@@ -150,4 +157,5 @@ func (w *Worker) work() {
 		w.pJob.ParseData(w)
 	}
 	w.loggingFinished()
+	wg.Done()
 }

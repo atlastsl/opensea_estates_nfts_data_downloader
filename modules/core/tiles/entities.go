@@ -8,7 +8,7 @@ import (
 type MapMacro struct {
 	mgm.DefaultModel `bson:",inline"`
 	Collection       string `bson:"collection,omitempty"`
-	Contract         string `bson:"nft_contract,omitempty"`
+	Contract         string `bson:"contract,omitempty"`
 	Type             string `bson:"type,omitempty"`
 	Slug             string `bson:"slug,omitempty"`
 	Name             string `bson:"name,omitempty"`
@@ -18,15 +18,13 @@ type MapMacro struct {
 type MapTile struct {
 	mgm.DefaultModel `bson:",inline"`
 	Collection       string             `bson:"collection,omitempty"`
-	Contract         string             `bson:"nft_contract,omitempty"`
+	Contract         string             `bson:"contract,omitempty"`
 	Coords           string             `bson:"coords,omitempty"`
 	X                int8               `bson:"x,omitempty"`
 	Y                int8               `bson:"y,omitempty"`
 	Type             string             `bson:"type,omitempty"`
 	Inside           primitive.ObjectID `bson:"inside,omitempty"`
 }
-
-type DclMapTileId string
 
 type DclMapTile struct {
 	Coords   string `mapstructure:"id"`
@@ -37,19 +35,17 @@ type DclMapTile struct {
 	EstateId string `mapstructure:"estateId"`
 }
 
-type DclMapTiles map[DclMapTileId]DclMapTile
-
 type DclMapTilesRes struct {
-	Ok   bool        `mapstructure:"ok"`
-	Data DclMapTiles `mapstructure:"data"`
+	Ok   bool                  `mapstructure:"ok"`
+	Data map[string]DclMapTile `mapstructure:"data"`
 }
 
 type DclMapDistrict struct {
-	Id           string         `mapstructure:"id"`
-	Name         string         `mapstructure:"name"`
-	Description  string         `mapstructure:"description"`
-	Parcels      []DclMapTileId `mapstructure:"parcels"`
-	TotalParcels uint           `mapstructure:"totalParcels"`
+	Id           string   `mapstructure:"id"`
+	Name         string   `mapstructure:"name"`
+	Description  string   `mapstructure:"description"`
+	Parcels      []string `mapstructure:"parcels"`
+	TotalParcels uint     `mapstructure:"totalParcels"`
 }
 
 type DclMapDistrictRes struct {

@@ -10,7 +10,7 @@ import (
 	"slices"
 )
 
-func _parseDclTileInfo(collection collections.Collection, tileId DclMapTileId, dclTile DclMapTile, districts []DclMapDistrict) (*MapTile, *MapMacro) {
+func _parseDclTileInfo(collection collections.Collection, tileId string, dclTile DclMapTile, districts []DclMapDistrict) (*MapTile, *MapMacro) {
 	insideType, insideName, insideId := "nothing", "", ""
 	if dclTile.Type == "plaza" || dclTile.Type == "road" {
 		insideType = dclTile.Type
@@ -18,14 +18,14 @@ func _parseDclTileInfo(collection collections.Collection, tileId DclMapTileId, d
 		insideId = dclTile.EstateId
 	} else if dclTile.Type == "district" {
 		idx := slices.IndexFunc(districts, func(district DclMapDistrict) bool {
-			return slices.ContainsFunc(district.Parcels, func(id DclMapTileId) bool {
-				return string(id) == string(tileId)
-			})
+			return slices.Contains(district.Parcels, tileId)
 		})
 		insideType = dclTile.Type
 		if idx >= 0 {
 			insideName = districts[idx].Name
 			insideId = fmt.Sprintf("District-%d", idx)
+		} else {
+			insideType = "nothing"
 		}
 	}
 	var mapMacro = MapMacro{
@@ -51,7 +51,7 @@ func _parseDclTileInfo(collection collections.Collection, tileId DclMapTileId, d
 func parseDclTileInfo(collection collections.Collection, addData, mainData any, task string, dbInstance *mongo.Database) error {
 	districtsData := addData.([]DclMapDistrict)
 	tileData := mainData.(DclMapTile)
-	tileId := DclMapTileId(task)
+	tileId := task
 	mapTile, mapMacro := _parseDclTileInfo(collection, tileId, tileData, districtsData)
 	var err error
 	if mapTile.Type == "nothing" {
@@ -59,7 +59,7 @@ func parseDclTileInfo(collection collections.Collection, addData, mainData any, 
 	} else {
 		mapMacro, err = saveMacroInDatabase(mapMacro, dbInstance)
 		if err == nil {
-			mapTile.Inside = mapMacro.DefaultModel.ID
+			mapTile.Inside = mapMacro.ID
 			err = saveTileInDatabase(mapTile, dbInstance)
 		}
 	}
