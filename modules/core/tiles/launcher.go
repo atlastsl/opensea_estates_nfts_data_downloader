@@ -6,6 +6,7 @@ import (
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -51,7 +52,7 @@ type MapTileParser struct {
 	Collection collections.Collection
 }
 
-func (m MapTileParser) ParseData(worker *multithread.Worker) {
+func (m MapTileParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
 	flag := false
 
 	worker.LoggingExtra("Connecting to database...")

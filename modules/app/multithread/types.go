@@ -47,7 +47,7 @@ type WorkerGetterJob interface {
 }
 
 type WorkerParserJob interface {
-	ParseData(worker *Worker)
+	ParseData(worker *Worker, wg *sync.WaitGroup)
 }
 
 type WorkerLogger interface {
@@ -154,7 +154,7 @@ func (w *Worker) work(wg *sync.WaitGroup) {
 	if w.Type == WorkerTypeGetter {
 		w.gJob.FetchData(w)
 	} else if w.Type == WorkerTypeParser {
-		w.pJob.ParseData(w)
+		w.pJob.ParseData(w, wg)
 	}
 	w.loggingFinished()
 	wg.Done()

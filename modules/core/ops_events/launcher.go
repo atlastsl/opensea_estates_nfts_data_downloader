@@ -7,6 +7,7 @@ import (
 	"decentraland_data_downloader/modules/helpers"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -89,7 +90,7 @@ type OpsEventsDataParser struct {
 	Collection collections.Collection
 }
 
-func (x OpsEventsDataParser) ParseData(worker *multithread.Worker) {
+func (x OpsEventsDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
 	flag := false
 
 	worker.LoggingExtra("Connecting to database...")

@@ -5,6 +5,7 @@ import (
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -87,7 +88,7 @@ type AssetsMovementsDataParser struct {
 	Collection collections.Collection
 }
 
-func (x AssetsMovementsDataParser) ParseData(worker *multithread.Worker) {
+func (x AssetsMovementsDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
 	flag := false
 
 	worker.LoggingExtra("Connecting to database...")

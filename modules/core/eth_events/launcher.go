@@ -6,6 +6,7 @@ import (
 	"decentraland_data_downloader/modules/core/collections"
 	"errors"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -110,7 +111,7 @@ type EthEventsDataParser struct {
 	Collection collections.Collection
 }
 
-func (x EthEventsDataParser) ParseData(worker *multithread.Worker) {
+func (x EthEventsDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
 	flag := false
 
 	databaseInstance, err := database.NewDatabaseConnection()

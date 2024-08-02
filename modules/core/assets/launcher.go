@@ -6,6 +6,7 @@ import (
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -86,7 +87,7 @@ type EstateAssetDataParser struct {
 	Collection collections.Collection
 }
 
-func (x EstateAssetDataParser) ParseData(worker *multithread.Worker) {
+func (x EstateAssetDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
 	flag := false
 
 	databaseInstance, err := database.NewDatabaseConnection()

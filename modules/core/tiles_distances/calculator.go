@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func _dclCalculateDistance2Tiles(tile1, tile2 string) (float64, int) {
@@ -18,7 +19,7 @@ func _dclCalculateDistance2Tiles(tile1, tile2 string) (float64, int) {
 	return helpers.EuclidDistance(t1X, t1Y, t2X, t2Y), helpers.ManhattanDistance(t1X, t1Y, t2X, t2Y)
 }
 
-func dclCalculateTileDistances(addData, mainData any, dbInstance *mongo.Database) error {
+func dclCalculateTileDistances(addData, mainData any, dbInstance *mongo.Database, wg *sync.WaitGroup) error {
 	macroList := addData.([]*MapMacroAug)
 	tile := mainData.(*tiles.MapTile)
 
@@ -44,6 +45,11 @@ func dclCalculateTileDistances(addData, mainData any, dbInstance *mongo.Database
 		}
 	}
 
-	err := saveTileMacroDistances(distances, dbInstance)
-	return err
+	wg.Add(1)
+	go func() {
+		_ = saveTileMacroDistances(distances, dbInstance)
+		wg.Done()
+	}()
+
+	return nil
 }

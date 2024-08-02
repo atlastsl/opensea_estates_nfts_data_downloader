@@ -7,6 +7,7 @@ import (
 	"decentraland_data_downloader/modules/helpers"
 	"os"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -72,7 +73,7 @@ type TilesDistanceDistanceCalc struct {
 	Collection collections.Collection
 }
 
-func (x TilesDistanceDistanceCalc) ParseData(worker *multithread.Worker) {
+func (x TilesDistanceDistanceCalc) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
 	flag := false
 
 	worker.LoggingExtra("Connecting to database...")
@@ -104,7 +105,7 @@ func (x TilesDistanceDistanceCalc) ParseData(worker *multithread.Worker) {
 
 						err = nil
 						if x.Collection == collections.CollectionDcl {
-							err = dclCalculateTileDistances(addData, mainData, databaseInstance)
+							err = dclCalculateTileDistances(addData, mainData, databaseInstance, wg)
 						}
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
