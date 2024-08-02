@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -26,7 +27,11 @@ func dclParseEstateAssetInfo(osAssetInfo *helpers.OpenseaNftAsset, assetType str
 	if osAssetInfo.TokenStandard != nil {
 		asset.TokenStandard = *osAssetInfo.TokenStandard
 	}
-	asset.Name = *osAssetInfo.Name
+	if osAssetInfo.Name != nil {
+		asset.Name = *osAssetInfo.Name
+	} else {
+		asset.Name = fmt.Sprintf("%s %s", strings.ToUpper(assetType), asset.Identifier)
+	}
 	if osAssetInfo.Description != nil {
 		asset.Description = *osAssetInfo.Description
 	}
@@ -99,7 +104,7 @@ func dclParseEstateAssetCoordinatesLand(osAssetInfo *helpers.OpenseaNftAsset) (i
 }
 
 func dclParseEstateAssetInfoLand(osAssetInfo *helpers.OpenseaNftAsset, dbInstance *mongo.Database) (*EstateAsset, []*EstateAssetMetadata, error) {
-	if osAssetInfo.Name != nil && osAssetInfo.Identifier != nil {
+	if osAssetInfo.Name != nil && osAssetInfo.ImageUrl != nil && osAssetInfo.Identifier != nil {
 		asset := dclParseEstateAssetInfo(osAssetInfo, dclAssetTypeLand)
 		X, Y, err := dclParseEstateAssetCoordinatesLand(osAssetInfo)
 		if err != nil {
