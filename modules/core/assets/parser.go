@@ -72,7 +72,7 @@ func dclParseEstateAssetCoordinatesLand(osAssetInfo *helpers.OpenseaNftAsset) (i
 	X, Y := 0, 0
 	var err error
 	defNameReg := regexp.MustCompile(`^Parcel\s(-?\d+),(-?\d+)$`)
-	imgUrlReg := regexp.MustCompile(`^https://api\.decentraland\.org/v2/parcels/(-?\d+)/(-?\d+)/map\.png`)
+	imgUrlReg := regexp.MustCompile(`^https://api\.decentraland\.org/v(-?\d+)/parcels/(-?\d+)/(-?\d+)/map\.png`)
 	matches := defNameReg.FindStringSubmatch(*osAssetInfo.Name)
 	if len(matches) == 3 {
 		X, err = strconv.Atoi(matches[1])
@@ -86,12 +86,12 @@ func dclParseEstateAssetCoordinatesLand(osAssetInfo *helpers.OpenseaNftAsset) (i
 		return X, Y, err
 	} else {
 		matches = imgUrlReg.FindStringSubmatch(*osAssetInfo.ImageUrl)
-		if len(matches) == 3 {
-			X, err = strconv.Atoi(matches[1])
+		if len(matches) == 4 {
+			X, err = strconv.Atoi(matches[2])
 			if err != nil {
 				return X, Y, err
 			}
-			Y, err = strconv.Atoi(matches[2])
+			Y, err = strconv.Atoi(matches[3])
 			if err != nil {
 				return X, Y, err
 			}
