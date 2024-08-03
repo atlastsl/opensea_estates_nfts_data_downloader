@@ -70,12 +70,12 @@ func (x EstateAssetMainDataGetter) FetchData(worker *multithread.Worker) {
 				mapData := map[string][]*helpers.OpenseaNftAsset{
 					key: response.Nfts,
 				}
-				/*if response.Next != nil {
+				if response.Next != nil {
 					nextToken = *response.Next
 				} else {
 					flag = true
-				}*/
-				flag = true
+				}
+				//flag = true
 				data = mapData
 			}
 
