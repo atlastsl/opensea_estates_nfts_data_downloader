@@ -4,7 +4,9 @@ import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/helpers"
+	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -20,6 +22,17 @@ func (x EstateAssetAddDataGetter) FetchData(worker *multithread.Worker) {
 
 	var data any = true
 	var err error = nil
+
+	databaseInstance, err := database.NewDatabaseConnection()
+	if err != nil {
+		worker.LoggingError("Failed to connect to database !", err)
+		return
+	}
+	defer database.CloseDatabaseConnection(databaseInstance)
+
+	if x.Collection == collections.CollectionDcl {
+		data, err = fetchTileMacroDistances(x.Collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), databaseInstance)
+	}
 
 	multithread.PublishDataNotification(worker, data, err)
 	multithread.PublishDoneNotification(worker)
@@ -90,13 +103,6 @@ type EstateAssetDataParser struct {
 func (x EstateAssetDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
 	flag := false
 
-	databaseInstance, err := database.NewDatabaseConnection()
-	if err != nil {
-		worker.LoggingError("Failed to connect to database !", err)
-		return
-	}
-	defer database.CloseDatabaseConnection(databaseInstance)
-
 	if worker.NextCursor != nil {
 		for !flag {
 
@@ -112,10 +118,12 @@ func (x EstateAssetDataParser) ParseData(worker *multithread.Worker, wg *sync.Wa
 				} else if nextInput != nil {
 					if reflect.TypeOf(nextInput).Kind() == reflect.Map {
 						niMap := nextInput.(map[string]any)
+						addData := niMap["addData"]
 						mainData := niMap["mainData"]
+						allDistances := addData.([]*tiles_distances.MapTileMacroDistance)
 						osAssetInfo := mainData.(*helpers.OpenseaNftAsset)
 
-						err = parseEstateAssetInfo(osAssetInfo, databaseInstance, wg)
+						err := parseEstateAssetInfo(osAssetInfo, allDistances, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

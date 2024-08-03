@@ -3,10 +3,10 @@ package assets
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/helpers"
 	"errors"
 	"fmt"
-	"go.mongodb.org/mongo-driver/mongo"
 	"os"
 	"regexp"
 	"strconv"
@@ -103,7 +103,17 @@ func dclParseEstateAssetCoordinatesLand(osAssetInfo *helpers.OpenseaNftAsset) (i
 	}
 }
 
-func dclParseEstateAssetInfoLand(osAssetInfo *helpers.OpenseaNftAsset, dbInstance *mongo.Database) (*EstateAsset, []*EstateAssetMetadata, error) {
+func dclParseEstateAssetFilterDistancesLand(coords string, allDistances []*tiles_distances.MapTileMacroDistance) []*tiles_distances.MapTileMacroDistance {
+	filteredDistances := make([]*tiles_distances.MapTileMacroDistance, 0)
+	if allDistances != nil && len(allDistances) > 0 {
+		filteredDistances = helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
+			return strings.Contains(distance.TileSlug, coords)
+		})
+	}
+	return filteredDistances
+}
+
+func dclParseEstateAssetInfoLand(osAssetInfo *helpers.OpenseaNftAsset, allDistances []*tiles_distances.MapTileMacroDistance) (*EstateAsset, []*EstateAssetMetadata, error) {
 	if osAssetInfo.Name != nil && osAssetInfo.ImageUrl != nil && osAssetInfo.Identifier != nil {
 		asset := dclParseEstateAssetInfo(osAssetInfo, dclAssetTypeLand)
 		X, Y, err := dclParseEstateAssetCoordinatesLand(osAssetInfo)
@@ -114,37 +124,31 @@ func dclParseEstateAssetInfoLand(osAssetInfo *helpers.OpenseaNftAsset, dbInstanc
 		coords := fmt.Sprintf("%d,%d", X, Y)
 		asset.X = X
 		asset.Y = Y
-		tile, err := fetchTileFromDatabase(collections.CollectionDcl, asset.Contract, coords, dbInstance)
-		if err != nil {
-			return nil, nil, err
-		}
 		var assetMetadata = make([]*EstateAssetMetadata, 0)
-		if tile != nil {
-			distances, err := fetchTileMacroDistances(tile, dbInstance)
-			if err != nil {
-				return nil, nil, err
+		distances := dclParseEstateAssetFilterDistancesLand(coords, allDistances)
+		if len(distances) == 0 {
+			return nil, nil, errors.New("invalid decentraland LAND asset [distances not found]")
+		}
+		for _, distance := range distances {
+			metadata := &EstateAssetMetadata{
+				MetadataType: MetadataTypeDistance,
+				DataType:     MetadataDataTypeInteger,
+				Name:         DistanceMetadataName(distance),
+				DisplayName:  DistanceMetadataDisplayName(distance),
+				Value:        strconv.FormatInt(int64(distance.ManDistance), 10),
+				MacroType:    distance.MacroType,
+				MacroRef:     distance.MacroRef,
 			}
-			for _, distance := range distances {
-				metadata := &EstateAssetMetadata{
-					MetadataType: MetadataTypeDistance,
-					DataType:     MetadataDataTypeInteger,
-					Name:         DistanceMetadataName(&distance),
-					DisplayName:  DistanceMetadataDisplayName(&distance),
-					Value:        strconv.FormatInt(int64(distance.ManDistance), 10),
-					MacroType:    distance.MacroType,
-					MacroRef:     distance.MacroRef,
-				}
-				metadata.CreatedAt = time.Now()
-				metadata.UpdatedAt = time.Now()
-				assetMetadata = append(assetMetadata, metadata)
-			}
+			metadata.CreatedAt = time.Now()
+			metadata.UpdatedAt = time.Now()
+			assetMetadata = append(assetMetadata, metadata)
 		}
 		return asset, assetMetadata, nil
 	}
 	return nil, nil, errors.New("invalid decentraland LAND asset [either Name or Identifier must be specified]")
 }
 
-func dclParseEstateAssetInfoEstate(osAssetInfo *helpers.OpenseaNftAsset, _ *mongo.Database) (*EstateAsset, []*EstateAssetMetadata, error) {
+func dclParseEstateAssetInfoEstate(osAssetInfo *helpers.OpenseaNftAsset) (*EstateAsset, []*EstateAssetMetadata, error) {
 	if osAssetInfo.Identifier != nil {
 		asset := dclParseEstateAssetInfo(osAssetInfo, dclAssetTypeEstate)
 		return asset, nil, nil
@@ -164,12 +168,15 @@ func saveEstateAssetInfoInDatabase(asset *EstateAsset, assetMetadata []*EstateAs
 	}
 	err = saveEstateMetadataInDatabase(assetMetadata, assetId, dbInstance)
 	if err != nil {
+		if asset.Type == "parcel" {
+			println(err.Error())
+		}
 		return err
 	}
 	return nil
 }
 
-func parseEstateAssetInfo(osAssetInfo *helpers.OpenseaNftAsset, dbInstance *mongo.Database, wg *sync.WaitGroup) error {
+func parseEstateAssetInfo(osAssetInfo *helpers.OpenseaNftAsset, allDistances []*tiles_distances.MapTileMacroDistance, wg *sync.WaitGroup) error {
 	if osAssetInfo != nil && osAssetInfo.Collection != nil && osAssetInfo.Contract != nil {
 
 		var asset *EstateAsset = nil
@@ -177,9 +184,9 @@ func parseEstateAssetInfo(osAssetInfo *helpers.OpenseaNftAsset, dbInstance *mong
 		var err error = nil
 		if *(osAssetInfo.Collection) == string(collections.CollectionDcl) {
 			if *(osAssetInfo.Contract) == os.Getenv("DECENTRALAND_LAND_CONTRACT") {
-				asset, assetMetadata, err = dclParseEstateAssetInfoLand(osAssetInfo, dbInstance)
+				asset, assetMetadata, err = dclParseEstateAssetInfoLand(osAssetInfo, allDistances)
 			} else if *(osAssetInfo.Contract) == os.Getenv("DECENTRALAND_ESTATE_CONTRACT") {
-				asset, assetMetadata, err = dclParseEstateAssetInfoEstate(osAssetInfo, dbInstance)
+				asset, assetMetadata, err = dclParseEstateAssetInfoEstate(osAssetInfo)
 			}
 		} else {
 			err = errors.New("invalid collection name")

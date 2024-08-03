@@ -4,33 +4,23 @@ import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/tiles"
 	"decentraland_data_downloader/modules/core/tiles_distances"
+	"errors"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func fetchTileFromDatabase(collection collections.Collection, contract, coords string, dbInstance *mongo.Database) (*tiles.MapTile, error) {
-	tile := &tiles.MapTile{}
-	tilesCollection := database.CollectionInstance(dbInstance, tile)
-	err := tilesCollection.FirstWithCtx(context.Background(), bson.M{"contract": contract, "collection": string(collection), "coords": coords}, tile)
-	if err != nil {
-		return nil, err
-	} else {
-		return tile, nil
-	}
-}
-
-func fetchTileMacroDistances(tile *tiles.MapTile, dbInstance *mongo.Database) ([]tiles_distances.MapTileMacroDistance, error) {
-	tileSlug := tiles.GetTileSlug(tile)
+func fetchTileMacroDistances(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*tiles_distances.MapTileMacroDistance, error) {
 	tmDistancesCol := database.CollectionInstance(dbInstance, &tiles_distances.MapTileMacroDistance{})
-	cursor, err := tmDistancesCol.Find(context.Background(), bson.M{"tile_slug": tileSlug})
+	regexPattern := fmt.Sprintf("%s|%s|", string(collection), contract)
+	cursor, err := tmDistancesCol.Find(context.Background(), bson.M{"tile_slug": bson.M{"$regex": primitive.Regex{Pattern: regexPattern, Options: "i"}}})
 	if err != nil {
 		return nil, err
 	}
-	var distances []tiles_distances.MapTileMacroDistance
+	var distances []*tiles_distances.MapTileMacroDistance
 	err = cursor.All(context.Background(), &distances)
 	if err != nil {
 		return nil, err
@@ -76,5 +66,5 @@ func saveEstateMetadataInDatabase(assetMetadata []*EstateAssetMetadata, assetId 
 		_, err := dbCollection.BulkWrite(context.Background(), operations)
 		return err
 	}
-	return nil
+	return errors.New("metadata empty list")
 }
