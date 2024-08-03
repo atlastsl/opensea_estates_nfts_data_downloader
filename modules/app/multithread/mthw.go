@@ -133,6 +133,7 @@ var ParserWorkerNotifier WorkerNotifier = func(notification *WorkerNotification,
 				}
 			}
 			worker.loggingTaskFinished(notification.Task, notification.Err)
+			delete(mainData, notification.Task)
 		}
 	}
 }

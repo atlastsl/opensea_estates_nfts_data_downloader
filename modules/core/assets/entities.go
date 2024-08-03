@@ -53,6 +53,11 @@ type EstateAssetMetadata struct {
 	UpdateDate       time.Time          `bson:"update_date,omitempty"`
 }
 
+type EstateAssetAll struct {
+	asset         *EstateAsset
+	assetMetadata []*EstateAssetMetadata
+}
+
 const (
 	MetadataTypeCoordinates = "coordinates"
 	MetadataTypeSize        = "size"

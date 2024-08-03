@@ -63,19 +63,19 @@ func (x EstateAssetMainDataGetter) FetchData(worker *multithread.Worker) {
 			if err2 != nil {
 				err = err2
 			} else {
-				mapData := make(map[string]*helpers.OpenseaNftAsset)
-				if response.Nfts != nil {
-					for _, datum := range response.Nfts {
-						if datum.Identifier != nil {
-							mapData[*datum.Identifier] = &datum
-						}
-					}
+				key := "first"
+				if nextToken != "" {
+					key = nextToken
 				}
-				if response.Next != nil {
+				mapData := map[string][]*helpers.OpenseaNftAsset{
+					key: response.Nfts,
+				}
+				/*if response.Next != nil {
 					nextToken = *response.Next
 				} else {
 					flag = true
-				}
+				}*/
+				flag = true
 				data = mapData
 			}
 
@@ -121,7 +121,7 @@ func (x EstateAssetDataParser) ParseData(worker *multithread.Worker, wg *sync.Wa
 						addData := niMap["addData"]
 						mainData := niMap["mainData"]
 						allDistances := addData.([]*tiles_distances.MapTileMacroDistance)
-						osAssetInfo := mainData.(*helpers.OpenseaNftAsset)
+						osAssetInfo := mainData.([]*helpers.OpenseaNftAsset)
 
 						err := parseEstateAssetInfo(osAssetInfo, allDistances, wg)
 

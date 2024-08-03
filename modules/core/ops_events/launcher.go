@@ -57,7 +57,7 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 					for _, event := range response.Events {
 						if event.Transaction != nil && event.EventType != nil && event.Nft != nil && event.Nft.Identifier != nil {
 							key := fmt.Sprintf("%s-%s-%s", *event.Transaction, *event.EventType, *event.Nft.Identifier)
-							mapData[key] = &event
+							mapData[key] = event
 						}
 					}
 				}

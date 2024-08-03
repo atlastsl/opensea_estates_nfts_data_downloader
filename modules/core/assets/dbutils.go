@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"slices"
 )
 
 func fetchTileMacroDistances(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*tiles_distances.MapTileMacroDistance, error) {
@@ -32,29 +32,62 @@ func fetchTileMacroDistances(collection collections.Collection, contract string,
 	return distances, nil
 }
 
-func saveEstateAssetInDatabase(asset *EstateAsset, dbInstance *mongo.Database) (primitive.ObjectID, error) {
+func saveEstateAssetInDatabase(assetsInfos []*EstateAssetAll, dbInstance *mongo.Database) error {
 	dbCollection := database.CollectionInstance(dbInstance, &EstateAsset{})
-	filterPayload := bson.M{"identifier": asset.Identifier, "collection": asset.Collection, "contract": asset.Contract}
-	rpOptions := &options.FindOneAndReplaceOptions{}
-	rpOptions.SetUpsert(true)
-	res := dbCollection.FindOneAndReplace(context.Background(), filterPayload, asset, rpOptions)
-	if res.Err() != nil {
-		return primitive.ObjectID{}, res.Err()
+
+	operations := make([]mongo.WriteModel, len(assetsInfos))
+	for i, assetInfo := range assetsInfos {
+		var filterPayload = bson.M{"identifier": assetInfo.asset.Identifier, "collection": assetInfo.asset.Collection, "contract": assetInfo.asset.Contract}
+		operations[i] = mongo.NewReplaceOneModel().SetFilter(filterPayload).SetReplacement(assetInfo.asset).SetUpsert(true)
 	}
-	updatedDoc := &EstateAsset{}
-	err := res.Decode(updatedDoc)
-	if err != nil {
-		return primitive.ObjectID{}, err
-	}
-	return updatedDoc.ID, nil
+	_, err := dbCollection.BulkWrite(context.Background(), operations)
+
+	return err
 }
 
-func saveEstateMetadataInDatabase(assetMetadata []*EstateAssetMetadata, assetId primitive.ObjectID, dbInstance *mongo.Database) error {
+func writeAssetEstateIDInMetadata(assetsInfos []*EstateAssetAll, dbInstance *mongo.Database) ([]*EstateAssetMetadata, error) {
+	dbCollection := database.CollectionInstance(dbInstance, &EstateAsset{})
+
+	payloads := bson.A{}
+	for _, assetInfo := range assetsInfos {
+		var filterPayload = bson.M{"identifier": assetInfo.asset.Identifier, "collection": assetInfo.asset.Collection, "contract": assetInfo.asset.Contract}
+		payloads = append(payloads, filterPayload)
+	}
+	filterPayload := bson.M{"$or": payloads}
+
+	cursor, err := dbCollection.Find(context.Background(), filterPayload)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	var result []EstateAsset
+	err = cursor.All(context.Background(), &result)
+	if err != nil {
+		return nil, err
+	}
+
+	metadataList := make([]*EstateAssetMetadata, 0)
+	for _, assetInfo := range assetsInfos {
+		dbAssetIdx := slices.IndexFunc(result, func(asset EstateAsset) bool {
+			return assetInfo.asset.Identifier == asset.Identifier && assetInfo.asset.Contract == asset.Contract && assetInfo.asset.Collection == asset.Collection
+		})
+		if dbAssetIdx >= 0 {
+			for _, metadata := range assetInfo.assetMetadata {
+				metadata.EstateAssetRef = result[dbAssetIdx].ID
+				metadataList = append(metadataList, metadata)
+			}
+		}
+	}
+
+	return metadataList, nil
+}
+
+func saveEstateMetadataInDatabase(assetMetadata []*EstateAssetMetadata, dbInstance *mongo.Database) error {
 	if assetMetadata != nil && len(assetMetadata) > 0 {
 		dbCollection := database.CollectionInstance(dbInstance, &EstateAssetMetadata{})
 		operations := make([]mongo.WriteModel, len(assetMetadata))
 		for i, metadata := range assetMetadata {
-			metadata.EstateAssetRef = assetId
 			var filterPayload bson.M
 			if !metadata.MacroRef.IsZero() {
 				filterPayload = bson.M{"macro": metadata.MacroRef, "estate_asset": metadata.EstateAssetRef}
@@ -67,4 +100,31 @@ func saveEstateMetadataInDatabase(assetMetadata []*EstateAssetMetadata, assetId 
 		return err
 	}
 	return errors.New("metadata empty list")
+}
+
+func saveEstateAssetInfoInDatabase(assetsInfos []*EstateAssetAll) error {
+	dbInstance, err := database.NewDatabaseConnection()
+	if err != nil {
+		return err
+	}
+	defer database.CloseDatabaseConnection(dbInstance)
+	if assetsInfos != nil && len(assetsInfos) > 0 {
+		err = saveEstateAssetInDatabase(assetsInfos, dbInstance)
+		if err != nil {
+			println(err.Error())
+			return err
+		}
+		metadataList, err2 := writeAssetEstateIDInMetadata(assetsInfos, dbInstance)
+		if err2 != nil {
+			println(err2.Error())
+			return err2
+		}
+		err = saveEstateMetadataInDatabase(metadataList, dbInstance)
+		if err != nil {
+			println(err.Error())
+			return err
+		}
+	}
+
+	return nil
 }

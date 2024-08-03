@@ -49,9 +49,9 @@ type OpenseaNftEvent struct {
 }
 
 type OpenSeaListResponse struct {
-	Nfts   []OpenseaNftAsset `json:"nfts"`
-	Events []OpenseaNftEvent `json:"asset_events"`
-	Next   *string           `json:"next"`
+	Nfts   []*OpenseaNftAsset `json:"nfts"`
+	Events []*OpenseaNftEvent `json:"asset_events"`
+	Next   *string            `json:"next"`
 }
 
 const OpenSeaListLimit = 200
