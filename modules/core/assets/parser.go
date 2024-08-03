@@ -107,7 +107,7 @@ func dclParseEstateAssetFilterDistancesLand(coords string, allDistances []*tiles
 	filteredDistances := make([]*tiles_distances.MapTileMacroDistance, 0)
 	if allDistances != nil && len(allDistances) > 0 {
 		filteredDistances = helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
-			return strings.Contains(distance.TileSlug, coords)
+			return strings.HasPrefix(distance.TileSlug, "|"+coords)
 		})
 	}
 	return filteredDistances
