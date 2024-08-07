@@ -19,7 +19,7 @@ const (
 )
 
 const (
-	EthereumStep = 25000
+	EthereumStep = 10000
 )
 
 func getCurrentLastBlockNumber() (uint64, error) {
