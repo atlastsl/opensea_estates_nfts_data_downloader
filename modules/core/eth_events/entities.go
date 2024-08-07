@@ -36,3 +36,11 @@ type EthResponse struct {
 	Error   any    `json:"error"`
 	Result  any    `json:"result"`
 }
+
+type BlockNumber struct {
+	mgm.DefaultModel
+	Collection    string `json:"collection" bson:"collection,omitempty"`
+	Chain         string `json:"chain" bson:"chain,omitempty"`
+	LatestFetched uint64 `json:"latest_fetched" bson:"latest_fetched,omitempty"`
+	LatestTrue    uint64 `json:"latest_true" bson:"latest_true,omitempty"`
+}

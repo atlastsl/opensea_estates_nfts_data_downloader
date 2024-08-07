@@ -37,6 +37,8 @@ func readFlags() (*string, *string, *int, bool) {
 	// go run main.go -x decentraland -t tiles -n 1
 	// go run main.go -x decentraland -t tiles_distances -n 1
 	// go run main.go -x decentraland -t estates_assets -n 1
+	// go run main.go -x decentraland -t eth_events -n 1
+	// go run main.go -x decentraland -t ops_events -n 1
 
 	if *collection == "" {
 		showUsageAndExit(0)

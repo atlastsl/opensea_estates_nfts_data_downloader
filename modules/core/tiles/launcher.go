@@ -26,7 +26,7 @@ func (d *MapTileAddDataGetter) FetchData(worker *multithread.Worker) {
 	}
 	worker.LoggingExtra("Districts data fetched. Publishing data...")
 
-	multithread.PublishDataNotification(worker, data, err)
+	multithread.PublishDataNotification(worker, "-", data, err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -44,7 +44,7 @@ func (d MapTileMainDataGetter) FetchData(worker *multithread.Worker) {
 	}
 	worker.LoggingExtra("Tiles data fetched. Publishing data...")
 
-	multithread.PublishDataNotification(worker, helpers.AnytiseData(data), err)
+	multithread.PublishDataNotification(worker, "-", helpers.AnytiseData(data), err)
 	multithread.PublishDoneNotification(worker)
 }
 

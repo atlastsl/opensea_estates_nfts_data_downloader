@@ -56,7 +56,7 @@ var AdditionalDataNotifier WorkerNotifier = func(notification *WorkerNotificatio
 			if notification.Status == WorkerParserStatusSuccess {
 				addData = notification.Data
 			}
-			worker.loggingDataPublished(addDataIndex, notification.Err)
+			worker.loggingDataPublished(addDataIndex, notification.Task, notification.Err)
 		} else if notification.Type == WorkerNotificationTypeDone {
 			addDataDone = true
 			worker.loggingAllDataPublished()
@@ -102,7 +102,7 @@ var MainDataNotifier WorkerNotifier = func(notification *WorkerNotification, wor
 					}
 				}
 			}
-			worker.loggingDataPublished(mainDataIndex, notification.Err)
+			worker.loggingDataPublished(mainDataIndex, notification.Task, notification.Err)
 		} else if notification.Type == WorkerNotificationTypeDone {
 			mainDataDone = true
 			worker.loggingAllDataPublished()

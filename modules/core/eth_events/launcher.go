@@ -4,7 +4,8 @@ import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
-	"errors"
+	"decentraland_data_downloader/modules/helpers"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -21,7 +22,7 @@ func (x EthEventsAddDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = true
 	var err error = nil
 
-	multithread.PublishDataNotification(worker, data, err)
+	multithread.PublishDataNotification(worker, "-", data, err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -42,26 +43,20 @@ func (x EthEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 	defer database.CloseDatabaseConnection(databaseInstance)
 	worker.LoggingExtra("Connection to database OK!")
 
-	worker.LoggingExtra("Get latest block recorded in database...")
-	latestBlock, err := getLatestBlock(databaseInstance, x.Collection)
+	worker.LoggingExtra("Get Block Numbers Slices...")
+	bnSlices, err := getSlicesOfBlockNumbers(x.Collection, databaseInstance)
 	if err != nil {
-		worker.LoggingError("Failed to get latest block recorded !", err)
+		worker.LoggingError("Failed to get block numbers slices !", err)
 		return
 	}
-	worker.LoggingExtra("Latest block recorded in database OK!")
-
-	worker.LoggingExtra("Get eth events logs topics...")
-	topics, _ := getTopicInfo(x.Collection)
-	if len(topics) == 0 {
-		err = errors.New("no logs topic registered in .env for this collection")
-		worker.LoggingError("No logs topic registered in .env for this collection !", err)
+	worker.LoggingExtra("Get Block Numbers Slices OK!")
+	if len(bnSlices) == 0 {
+		worker.LoggingExtra("Block Numbers up to date !!")
 		return
 	}
-	jTopic := 0
-	worker.LoggingExtra("Eth events logs topics OK!")
 
+	iSlice := 0
 	worker.LoggingExtra("Start fetching eth events logs !")
-	clBlock := latestBlock
 	for !flag {
 
 		interrupted := (*worker.ItrChecker)(worker)
@@ -74,23 +69,20 @@ func (x EthEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 			var data any = nil
 			var err0 error = nil
 
-			response, newLatestBlock, err2 := getEthEvents(x.Collection, topics[jTopic], clBlock)
+			task := fmt.Sprintf("%d-%d", bnSlices[iSlice][0], bnSlices[iSlice][1])
+
+			response, err2 := getEthEventsLogs(x.Collection, bnSlices[iSlice])
 			if err2 != nil {
 				err0 = err2
 			} else {
-				data = response
-				if len(response) == 0 {
-					clBlock = latestBlock
-					jTopic++
-					if jTopic == len(topics) {
-						flag = true
-					}
-				} else {
-					clBlock = newLatestBlock
+				data = map[string]any{task: response}
+				iSlice++
+				if iSlice >= len(bnSlices) {
+					flag = true
 				}
 			}
 
-			multithread.PublishDataNotification(worker, data, err0)
+			multithread.PublishDataNotification(worker, task, helpers.AnytiseData(data), err0)
 			if err0 != nil {
 				worker.LoggingError("Error when getting data !", err0)
 				flag = true
@@ -111,15 +103,8 @@ type EthEventsDataParser struct {
 	Collection collections.Collection
 }
 
-func (x EthEventsDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
+func (x EthEventsDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
 	flag := false
-
-	databaseInstance, err := database.NewDatabaseConnection()
-	if err != nil {
-		worker.LoggingError("Failed to connect to database !", err)
-		return
-	}
-	defer database.CloseDatabaseConnection(databaseInstance)
 
 	if worker.NextCursor != nil {
 		for !flag {
@@ -134,12 +119,12 @@ func (x EthEventsDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitG
 				} else if task == "" {
 					flag = true
 				} else if nextInput != nil {
-					if reflect.TypeOf(nextInput).Kind() == reflect.String {
+					if reflect.TypeOf(nextInput).Kind() == reflect.Map {
 						niMap := nextInput.(map[string]any)
 						mainData := niMap["mainData"]
-						events := mainData.([]EthEventRes)
+						events := mainData.([]*EthEventRes)
 
-						err = parseEthEventsRes(events, x.Collection, databaseInstance)
+						err := parseEthEventsRes(events, x.Collection, task, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

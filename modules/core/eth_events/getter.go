@@ -7,136 +7,155 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"math/big"
+	"go.mongodb.org/mongo-driver/mongo"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 )
 
-func buildNextBlockNumber(latestBlock string) string {
-	bigLastBlock, _ := hexutil.DecodeBig(latestBlock)
-	nextBlock := big.NewInt(0)
-	nextBlock.Add(bigLastBlock, big.NewInt(1))
-	return hexutil.EncodeBig(nextBlock)
+const (
+	EthereumChain = "ethereum"
+)
+
+const (
+	EthereumStep = 25000
+)
+
+func getCurrentLastBlockNumber() (uint64, error) {
+	url := fmt.Sprintf("https://mainnet.infura.io/v3/%s", os.Getenv("INFURA_API_KEY"))
+	mPayload := map[string]any{
+		"jsonrpc": "2.0",
+		"method":  "eth_blockNumber",
+		"params":  []string{},
+		"id":      time.Now().UnixMilli(),
+	}
+	payload, err := json.Marshal(mPayload)
+	if err != nil {
+		return 0, err
+	}
+	response := &EthResponse{}
+	err = helpers.PostData(url, "", payload, response)
+	if err != nil {
+		return 0, err
+	}
+	if response.Error != nil {
+		sErrorMessage := ""
+		errorPayload := response.Error.(map[string]interface{})
+		if errorMessage, ok := errorPayload["message"]; ok {
+			sErrorMessage = errorMessage.(string)
+		} else {
+			sErrorMessage = "invalid request"
+		}
+		return 0, errors.New(sErrorMessage)
+	} else if reflect.TypeOf(response.Result).Kind() != reflect.String {
+		return 0, errors.New("invalid response")
+	} else {
+		lBlockNumber, err := helpers.HexConvertToInt(response.Result.(string))
+		return uint64(lBlockNumber), err
+	}
 }
 
-func getLogsBuildParams(addresses []string, topic, latestBlock, fromBlock, toBlock string) ([]byte, error) {
+func getSlicesOfBlockNumbers(collection collections.Collection, dbInstance *mongo.Database) ([][]uint64, error) {
+	bnSlices := make([][]uint64, 0)
+	if collection == collections.CollectionDcl {
+		latestFetchedBN, err := getLatestFetchedBlockNumber(collection, EthereumChain, dbInstance)
+		if err != nil {
+			return nil, err
+		}
+		latestTrueBN, err := getCurrentLastBlockNumber()
+		if err != nil {
+			return nil, err
+		}
+		err = saveLatestTrueBlockNumber(collection, EthereumChain, latestTrueBN, dbInstance)
+		if err != nil {
+			return nil, err
+		}
+		if latestFetchedBN < latestTrueBN {
+			parcours := latestFetchedBN
+			for parcours < latestTrueBN {
+				bInf := parcours + 1
+				bSup := parcours + EthereumStep
+				if bSup > latestTrueBN {
+					bSup = latestTrueBN
+				}
+				bnSlices = append(bnSlices, []uint64{bInf, bSup})
+				parcours = bSup
+			}
+		}
+	}
+	return bnSlices, nil
+}
+
+func getLogsBuildParams(addresses []string, topic string, fromBlock, toBlock uint64) ([]byte, error) {
 	reqParams := map[string]any{}
 	reqParams["address"] = addresses
 	reqParams["topics"] = []string{topic}
-	if toBlock != "" {
-		reqParams["toBlock"] = toBlock
-	} else {
-		reqParams["toBlock"] = "latest"
-	}
-	if fromBlock != "" {
-		reqParams["fromBlock"] = fromBlock
-	} else if latestBlock != "" {
-		reqParams["fromBlock"] = buildNextBlockNumber(latestBlock)
-	} else {
-		reqParams["fromBlock"] = "earliest"
-	}
+	reqParams["fromBlock"] = hexutil.EncodeUint64(fromBlock)
+	reqParams["toBlock"] = hexutil.EncodeUint64(toBlock)
 	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "eth_getLogs",
 		"id":      time.Now().UnixMilli(),
-		"params":  reqParams,
+		"params":  []any{reqParams},
 	}
-	return json.Marshal(payload)
+	return json.MarshalIndent(payload, "", "  ")
 }
 
-func getEthEventsLogs(addresses []string, topic, latestBlock string) (map[string][]EthEventRes, string, error) {
+func getEthEventsLogsOfTopic(collection collections.Collection, topic string, bnSlice []uint64) ([]*EthEventRes, error) {
+
+	addresses := getAddresses(collection)
+	if len(addresses) == 0 {
+		return nil, errors.New("no addresses found")
+	}
 
 	url := fmt.Sprintf("https://mainnet.infura.io/v3/%s", os.Getenv("INFURA_API_KEY"))
 
-	resp1 := &EthResponse{}
-	payload, err := getLogsBuildParams(addresses, topic, latestBlock, "", "")
-	if err != nil {
-		return nil, "", err
-	}
-	err = helpers.PostData(url, "", payload, resp1)
-	if err != nil {
-		return nil, "", err
-	}
-
 	var result any
-	if resp1.Error != nil {
-		errorMap := resp1.Error.(map[string]interface{})
-		errorData, _ := errorMap["data"]
-		errorCode := errorMap["code"].(int)
-		errorMessage := errorMap["message"].(string)
-		isError := false
-		fromBlock, toBlock := "", ""
-		if errorCode == -32005 || errorData != nil {
-			errorDataMap := errorData.(map[string]interface{})
-			varFromBlock, hasFrom := errorDataMap["fromBlock"]
-			varToBlock, hasTo := errorDataMap["fromBlock"]
-			if !hasFrom {
-				isError = true
-			} else {
-				fromBlock = varFromBlock.(string)
-				if hasTo {
-					toBlock = varToBlock.(string)
-				}
-			}
-		} else {
-			isError = true
-		}
-		if isError {
-			return nil, "", errors.New(strings.ToLower(errorMessage))
-		}
 
-		payload, err = getLogsBuildParams(addresses, topic, latestBlock, fromBlock, toBlock)
-		if err != nil {
-			return nil, "", err
-		}
-		resp2 := &EthResponse{}
-		err = helpers.PostData(url, "", payload, resp2)
-		if err != nil {
-			return nil, "", err
-		} else if resp2.Error != nil {
-			errorMap = resp2.Error.(map[string]interface{})
-			errorMessage = errorMap["message"].(string)
-			return nil, "", errors.New(strings.ToLower(errorMessage))
-		} else {
-			result = resp2.Result
-		}
+	payload, err := getLogsBuildParams(addresses, topic, bnSlice[0], bnSlice[1])
+	if err != nil {
+		return nil, err
+	}
+	response := &EthResponse{}
+	err = helpers.PostData(url, "", payload, response)
+	if err != nil {
+		return nil, err
+	} else if response.Error != nil {
+		errorMap := response.Error.(map[string]interface{})
+		errorMessage := errorMap["message"].(string)
+		return nil, errors.New(strings.ToLower(errorMessage))
 	} else {
-		result = resp1.Result
+		result = response.Result
 	}
 
-	var events []EthEventRes
+	var events []*EthEventRes
 	resJson, err := json.Marshal(result)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-
 	err = json.Unmarshal(resJson, &events)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	evMap := map[string][]EthEventRes{}
-	for _, event := range events {
-		_, ok := evMap[*event.BlockHash]
-		if !ok {
-			evMap[*event.BlockHash] = make([]EthEventRes, 0)
-		}
-		evMap[*event.BlockHash] = append(evMap[*event.BlockHash], event)
-	}
-
-	newLatestBlock := ""
-	if len(events) > 0 {
-		newLatestBlock = *events[len(events)-1].BlockNumber
-	}
-
-	return evMap, newLatestBlock, nil
+	return events, nil
 }
 
-func getEthEvents(collection collections.Collection, topic, latestBlock string) (map[string][]EthEventRes, string, error) {
-	addresses := getAddresses(collection)
-	if len(addresses) == 0 {
-		return nil, "", errors.New("no addresses found")
+func getEthEventsLogs(collection collections.Collection, bnSlice []uint64) ([]*EthEventRes, error) {
+	events := make([]*EthEventRes, 0)
+	topics, _ := getTopicInfo(collection)
+
+	for _, topic := range topics {
+		topicEvents, err := getEthEventsLogsOfTopic(collection, topic, bnSlice)
+		if err != nil {
+			return nil, err
+		}
+		if len(topicEvents) > 0 {
+			events = append(events, topicEvents...)
+		}
+		//events = slices.Concat(events, topicEvents)
 	}
-	return getEthEventsLogs(addresses, topic, latestBlock)
+
+	return events, nil
 }

@@ -1,10 +1,13 @@
 package eth_events
 
 import (
+	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
-	"go.mongodb.org/mongo-driver/mongo"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 func dclParseEventTopic(topics []string, topicHexNames, topicNames []string) (string, map[string]any) {
@@ -36,6 +39,8 @@ func parseEthEventRes(eventRes *EthEventRes, collection collections.Collection, 
 		return true, helpers.HexRemoveLeadingZeros(t)
 	}, true, "")
 	event := &EthEvent{}
+	event.CreatedAt = time.Now()
+	event.UpdatedAt = time.Now()
 	event.Collection = string(collection)
 	event.Address = *eventRes.Address
 	event.EventId = strings.Join(cleanTopics, "-")
@@ -52,11 +57,38 @@ func parseEthEventRes(eventRes *EthEventRes, collection collections.Collection, 
 	return event
 }
 
-func parseEthEventsRes(eventRes []EthEventRes, collection collections.Collection, dbInstance *mongo.Database) error {
-	topicHexNames, topicNames := getTopicInfo(collection)
-	events := helpers.ArrayMap(eventRes, func(t EthEventRes) (bool, *EthEvent) {
-		return true, parseEthEventRes(&t, collection, topicHexNames, topicNames)
-	}, false, nil)
-	err := saveEventsInDatabase(events, dbInstance)
+func saveParsedEvents(events []*EthEvent, collection collections.Collection, getterKey string) error {
+	dbInstance, err := database.NewDatabaseConnection()
+	if err != nil {
+		return err
+	}
+	defer database.CloseDatabaseConnection(dbInstance)
+
+	err = saveEventsInDatabase(events, dbInstance)
+
+	tmp := strings.Split(getterKey, "-")
+	latestFetchedBN, _ := strconv.ParseUint(tmp[1], 10, 64)
+	if collection == collections.CollectionDcl {
+		err = saveLatestFetchedBlockNumber(collection, EthereumChain, latestFetchedBN, dbInstance)
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
+}
+
+func parseEthEventsRes(eventRes []*EthEventRes, collection collections.Collection, getterKey string, wg *sync.WaitGroup) error {
+	topicHexNames, topicNames := getTopicInfo(collection)
+	events := helpers.ArrayMap(eventRes, func(t *EthEventRes) (bool, *EthEvent) {
+		return true, parseEthEventRes(t, collection, topicHexNames, topicNames)
+	}, false, nil)
+
+	wg.Add(1)
+	go func() {
+		_ = saveParsedEvents(events, collection, getterKey)
+		wg.Done()
+	}()
+
+	return nil
 }

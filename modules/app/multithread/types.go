@@ -102,12 +102,12 @@ func (w *Worker) loggingFinished() {
 	w.loggingMessage("Finished !")
 }
 
-func (w *Worker) loggingDataPublished(num uint8, err error) {
+func (w *Worker) loggingDataPublished(num uint8, task string, err error) {
 	if err != nil {
-		logPreMessage := fmt.Sprintf("Error occurred on work (Step = #%d)", num)
+		logPreMessage := fmt.Sprintf("Error occurred on work (Step = #%d, Task = %s)", num, task)
 		w.loggingError(logPreMessage, err)
 	} else {
-		logMessage := fmt.Sprintf("Data published (Step = #%d)", num)
+		logMessage := fmt.Sprintf("Data published (Step = #%d, Task = %s)", num, task)
 		w.loggingMessage(logMessage)
 	}
 }

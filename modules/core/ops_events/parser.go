@@ -1,13 +1,17 @@
 package ops_events
 
 import (
+	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/helpers"
 	"errors"
-	"go.mongodb.org/mongo-driver/mongo"
+	"sync"
+	"time"
 )
 
 func parseEstateEventInfoProcess(estateEvent *helpers.OpenseaNftEvent) *EstateEvent {
 	event := &EstateEvent{}
+	event.CreatedAt = time.Now()
+	event.UpdatedAt = time.Now()
 	event.Collection = *estateEvent.Nft.Collection
 	event.Contract = *estateEvent.Nft.Contract
 	event.AssetId = *estateEvent.Nft.Identifier
@@ -60,16 +64,31 @@ func parseEstateEventInfoProcess(estateEvent *helpers.OpenseaNftEvent) *EstateEv
 	return event
 }
 
-func parseEstateEventInfo(estateEvent *helpers.OpenseaNftEvent, dbInstance *mongo.Database) error {
-	if estateEvent != nil && estateEvent.Nft != nil && estateEvent.Nft.Collection != nil && estateEvent.Nft.Identifier != nil && estateEvent.Nft.Contract != nil && estateEvent.EventType != nil && estateEvent.Transaction != nil {
-
-		var event = parseEstateEventInfoProcess(estateEvent)
-		err := saveOpsEventInDatabase(event, dbInstance)
-		if err != nil {
-			return err
-		}
-
-		return nil
+func saveParsedEvents(events []*EstateEvent) error {
+	dbInstance, err := database.NewDatabaseConnection()
+	if err != nil {
+		return err
 	}
-	return errors.New("invalid estate event info")
+	defer database.CloseDatabaseConnection(dbInstance)
+	err = saveOpsEventInDatabase(events, dbInstance)
+	return err
+}
+
+func parseEstateEventInfo(estateEvents []*helpers.OpenseaNftEvent, wg *sync.WaitGroup) error {
+	if estateEvents != nil && len(estateEvents) > 0 {
+		events := make([]*EstateEvent, len(estateEvents))
+		for i, estateEvent := range estateEvents {
+			if estateEvent != nil && estateEvent.Nft != nil && estateEvent.Nft.Collection != nil && estateEvent.Nft.Identifier != nil && estateEvent.Nft.Contract != nil && estateEvent.EventType != nil && estateEvent.Transaction != nil {
+				events[i] = parseEstateEventInfoProcess(estateEvent)
+			} else {
+				return errors.New("invalid estate event info")
+			}
+		}
+		wg.Add(1)
+		go func() {
+			_ = saveParsedEvents(events)
+			wg.Done()
+		}()
+	}
+	return nil
 }

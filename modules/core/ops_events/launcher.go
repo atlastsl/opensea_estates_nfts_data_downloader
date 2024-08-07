@@ -5,7 +5,6 @@ import (
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
-	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -22,7 +21,7 @@ func (x OpsEventsAddDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = true
 	var err error = nil
 
-	multithread.PublishDataNotification(worker, data, err)
+	multithread.PublishDataNotification(worker, "-", data, err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -31,6 +30,23 @@ type OpsEventsMainDataGetter struct {
 }
 
 func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
+
+	worker.LoggingExtra("Connecting to database...")
+	databaseInstance, err := database.NewDatabaseConnection()
+	if err != nil {
+		worker.LoggingError("Failed to connect to database !", err)
+		return
+	}
+	defer database.CloseDatabaseConnection(databaseInstance)
+	worker.LoggingExtra("Connection to database OK!")
+
+	worker.LoggingExtra("Get latest event timestamp from database...")
+	latestEvtTimestamp, err := getLatestEventTimestamp(x.Collection, databaseInstance)
+	if err != nil {
+		worker.LoggingError("Failed to get latest event timestamp from database !", err)
+		return
+	}
+	worker.LoggingExtra("Get latest event timestamp from database OK!")
 
 	flag := false
 	nextToken := ""
@@ -48,28 +64,33 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 			var data any = nil
 			var err error = nil
 
+			task := nextToken
+			if nextToken == "" {
+				task = "first"
+			}
+
 			response, err2 := getEventsFromOpensea(x.Collection, nextToken)
 			if err2 != nil {
 				err = err2
 			} else {
-				mapData := make(map[string]*helpers.OpenseaNftEvent)
-				if response.Events != nil {
-					for _, event := range response.Events {
-						if event.Transaction != nil && event.EventType != nil && event.Nft != nil && event.Nft.Identifier != nil {
-							key := fmt.Sprintf("%s-%s-%s", *event.Transaction, *event.EventType, *event.Nft.Identifier)
-							mapData[key] = event
-						}
-					}
-				}
-				if response.Next != nil {
-					nextToken = *response.Next
-				} else {
+				eventsToSave := helpers.ArrayFilter(response.Events, func(event *helpers.OpenseaNftEvent) bool {
+					return int64(*event.EventTimestamp) > latestEvtTimestamp
+				})
+				eventsToIgnore := helpers.ArrayFilter(response.Events, func(event *helpers.OpenseaNftEvent) bool {
+					return int64(*event.EventTimestamp) <= latestEvtTimestamp
+				})
+				mapData := map[string][]*helpers.OpenseaNftEvent{task: eventsToSave}
+				if len(eventsToIgnore) > 0 {
 					flag = true
+				} else if response.Next == nil {
+					flag = true
+				} else {
+					nextToken = *response.Next
 				}
 				data = mapData
 			}
 
-			multithread.PublishDataNotification(worker, data, err)
+			multithread.PublishDataNotification(worker, task, helpers.AnytiseData(data), err)
 			if err != nil {
 				worker.LoggingError("Error when getting data !", err)
 				flag = true
@@ -90,17 +111,8 @@ type OpsEventsDataParser struct {
 	Collection collections.Collection
 }
 
-func (x OpsEventsDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
+func (x OpsEventsDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
 	flag := false
-
-	worker.LoggingExtra("Connecting to database...")
-	databaseInstance, err := database.NewDatabaseConnection()
-	if err != nil {
-		worker.LoggingError("Failed to connect to database !", err)
-		return
-	}
-	defer database.CloseDatabaseConnection(databaseInstance)
-	worker.LoggingExtra("Connection to database OK!")
 
 	worker.LoggingExtra("Start parse Opensea events logs !")
 	if worker.NextCursor != nil {
@@ -116,12 +128,12 @@ func (x OpsEventsDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitG
 				} else if task == "" {
 					flag = true
 				} else if nextInput != nil {
-					if reflect.TypeOf(nextInput).Kind() == reflect.String {
+					if reflect.TypeOf(nextInput).Kind() == reflect.Map {
 						niMap := nextInput.(map[string]any)
 						mainData := niMap["mainData"]
-						estateEvent := mainData.(*helpers.OpenseaNftEvent)
+						estateEvent := mainData.([]*helpers.OpenseaNftEvent)
 
-						err = parseEstateEventInfo(estateEvent, databaseInstance)
+						err := parseEstateEventInfo(estateEvent, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

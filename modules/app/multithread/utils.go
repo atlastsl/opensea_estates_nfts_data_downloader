@@ -1,8 +1,9 @@
 package multithread
 
-func PublishDataNotification(worker *Worker, data any, err error) {
+func PublishDataNotification(worker *Worker, task string, data any, err error) {
 	dataNotification := WorkerNotification{
 		Type: WorkerNotificationTypeData,
+		Task: task,
 	}
 	if err != nil {
 		dataNotification.Status = WorkerParserStatusFailed

@@ -34,7 +34,7 @@ func (x EstateAssetAddDataGetter) FetchData(worker *multithread.Worker) {
 		data, err = fetchTileMacroDistances(x.Collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), databaseInstance)
 	}
 
-	multithread.PublishDataNotification(worker, data, err)
+	multithread.PublishDataNotification(worker, "-", data, err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -59,16 +59,18 @@ func (x EstateAssetMainDataGetter) FetchData(worker *multithread.Worker) {
 			var data any = nil
 			var err error = nil
 
+			task := "first"
+			if nextToken != "" {
+				task = nextToken
+			}
+
 			response, err2 := getAssetFromOpensea(x.Collection, nextToken)
+
 			if err2 != nil {
 				err = err2
 			} else {
-				key := "first"
-				if nextToken != "" {
-					key = nextToken
-				}
 				mapData := map[string][]*helpers.OpenseaNftAsset{
-					key: response.Nfts,
+					task: response.Nfts,
 				}
 				if response.Next != nil {
 					nextToken = *response.Next
@@ -79,7 +81,7 @@ func (x EstateAssetMainDataGetter) FetchData(worker *multithread.Worker) {
 				data = mapData
 			}
 
-			multithread.PublishDataNotification(worker, helpers.AnytiseData(data), err)
+			multithread.PublishDataNotification(worker, task, helpers.AnytiseData(data), err)
 			if err != nil {
 				worker.LoggingError("Error when getting data !", err)
 				flag = true

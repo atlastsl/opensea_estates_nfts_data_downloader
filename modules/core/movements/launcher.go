@@ -20,7 +20,7 @@ func (x AssetsMovementsAddDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = true
 	var err error = nil
 
-	multithread.PublishDataNotification(worker, data, err)
+	multithread.PublishDataNotification(worker, "-", data, err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -67,7 +67,7 @@ func (x AssetsMovementsMainDataGetter) FetchData(worker *multithread.Worker) {
 				data = transactions
 			}
 
-			multithread.PublishDataNotification(worker, data, err)
+			multithread.PublishDataNotification(worker, "-", data, err)
 			if err != nil {
 				worker.LoggingError("Error when getting data !", err)
 				flag = true

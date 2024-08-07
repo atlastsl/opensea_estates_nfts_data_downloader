@@ -38,7 +38,7 @@ func (x TilesDistanceAddDataGetter) FetchData(worker *multithread.Worker) {
 	}
 	worker.LoggingExtra("Macro data fetched from database. Publishing data...")
 
-	multithread.PublishDataNotification(worker, data, err)
+	multithread.PublishDataNotification(worker, "-", data, err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -66,7 +66,7 @@ func (x TilesDistanceMainDataGetter) FetchData(worker *multithread.Worker) {
 	}
 	worker.LoggingExtra("Tiles Ids fetched from database. Publishing data...")
 
-	multithread.PublishDataNotification(worker, helpers.AnytiseData(data), err)
+	multithread.PublishDataNotification(worker, "-", helpers.AnytiseData(data), err)
 	multithread.PublishDoneNotification(worker)
 }
 
