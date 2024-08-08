@@ -55,6 +55,7 @@ type OpenSeaListResponse struct {
 }
 
 const OpenSeaListLimit = 200
+const OpenSeaListLimitEvents = 50
 
 func GetListOpenseaData(url string) (*OpenSeaListResponse, error) {
 	req, err := http.NewRequest("GET", url, nil)
