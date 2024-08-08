@@ -7,7 +7,7 @@ import (
 )
 
 func getEventsFromOpensea(collection collections.Collection, nextToken string) (*helpers.OpenSeaListResponse, error) {
-	url := fmt.Sprintf("https://api.opensea.io/api/v2/collection/%s?limit=%d", string(collection), helpers.OpenSeaListLimit)
+	url := fmt.Sprintf("https://api.opensea.io/api/v2/events/collection/%s?event_type=sale&event_type=transfer&limit=%d", string(collection), helpers.OpenSeaListLimit)
 	if nextToken != "" {
 		url = fmt.Sprintf("%s&next=%s", url, nextToken)
 	}

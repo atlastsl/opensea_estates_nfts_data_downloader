@@ -6,6 +6,9 @@
         <function importPath="decentraland_data_downloader/modules/core/tiles" name="saveMacroInDatabase" />
         <function importPath="decentraland_data_downloader/modules/core/assets" name="dclParseEstateAssetInfoEstate" />
       </functions>
+      <methods>
+        <method importPath="github.com/kamva/mgm/v3" receiver="*Collection" name="Find" />
+      </methods>
     </inspection_tool>
   </profile>
 </component>

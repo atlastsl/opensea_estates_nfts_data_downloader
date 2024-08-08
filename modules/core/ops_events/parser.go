@@ -45,6 +45,9 @@ func parseEstateEventInfoProcess(estateEvent *helpers.OpenseaNftEvent) *EstateEv
 			if estateEvent.Payment.TokenAddress != nil {
 				event.CcyAddress = *estateEvent.Payment.TokenAddress
 			}
+			if estateEvent.Payment.Decimals != nil {
+				event.CCyDecimals = int64(*estateEvent.Payment.Decimals)
+			}
 			if estateEvent.Payment.Quantity != nil && estateEvent.Payment.Decimals != nil {
 				amt, _ := helpers.ConvertBigAmountToFloat64(*estateEvent.Payment.Quantity, *estateEvent.Payment.Decimals)
 				event.Amount = amt

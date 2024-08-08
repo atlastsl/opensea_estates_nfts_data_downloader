@@ -10,7 +10,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
 	"reflect"
-	"strings"
 	"time"
 )
 
@@ -18,81 +17,23 @@ const (
 	EthereumChain = "ethereum"
 )
 
-const (
-	EthereumStep = 10000
-)
-
-func getCurrentLastBlockNumber() (uint64, error) {
-	url := fmt.Sprintf("https://mainnet.infura.io/v3/%s", os.Getenv("INFURA_API_KEY"))
-	mPayload := map[string]any{
-		"jsonrpc": "2.0",
-		"method":  "eth_blockNumber",
-		"params":  []string{},
-		"id":      time.Now().UnixMilli(),
-	}
-	payload, err := json.Marshal(mPayload)
-	if err != nil {
-		return 0, err
-	}
-	response := &EthResponse{}
-	err = helpers.PostData(url, "", payload, response)
-	if err != nil {
-		return 0, err
-	}
-	if response.Error != nil {
-		sErrorMessage := ""
-		errorPayload := response.Error.(map[string]interface{})
-		if errorMessage, ok := errorPayload["message"]; ok {
-			sErrorMessage = errorMessage.(string)
-		} else {
-			sErrorMessage = "invalid request"
-		}
-		return 0, errors.New(sErrorMessage)
-	} else if reflect.TypeOf(response.Result).Kind() != reflect.String {
-		return 0, errors.New("invalid response")
-	} else {
-		lBlockNumber, err := helpers.HexConvertToInt(response.Result.(string))
-		return uint64(lBlockNumber), err
-	}
-}
-
-func getSlicesOfBlockNumbers(collection collections.Collection, dbInstance *mongo.Database) ([][]uint64, error) {
-	bnSlices := make([][]uint64, 0)
+func getLatestFetchedBlockNumbers(collection collections.Collection, dbInstance *mongo.Database) (map[string]uint64, error) {
 	if collection == collections.CollectionDcl {
-		latestFetchedBN, err := getLatestFetchedBlockNumber(collection, EthereumChain, dbInstance)
-		if err != nil {
-			return nil, err
-		}
-		latestTrueBN, err := getCurrentLastBlockNumber()
-		if err != nil {
-			return nil, err
-		}
-		err = saveLatestTrueBlockNumber(collection, EthereumChain, latestTrueBN, dbInstance)
-		if err != nil {
-			return nil, err
-		}
-		if latestFetchedBN < latestTrueBN {
-			parcours := latestFetchedBN
-			for parcours < latestTrueBN {
-				bInf := parcours + 1
-				bSup := parcours + EthereumStep
-				if bSup > latestTrueBN {
-					bSup = latestTrueBN
-				}
-				bnSlices = append(bnSlices, []uint64{bInf, bSup})
-				parcours = bSup
-			}
-		}
+		return getLatestFetchedBlockNumber(collection, EthereumChain, dbInstance)
 	}
-	return bnSlices, nil
+	return map[string]uint64{}, nil
 }
 
-func getLogsBuildParams(addresses []string, topic string, fromBlock, toBlock uint64) ([]byte, error) {
+func getLogsBuildParams(addresses []string, topic string, bnInterval []uint64) ([]byte, error) {
 	reqParams := map[string]any{}
 	reqParams["address"] = addresses
 	reqParams["topics"] = []string{topic}
-	reqParams["fromBlock"] = hexutil.EncodeUint64(fromBlock)
-	reqParams["toBlock"] = hexutil.EncodeUint64(toBlock)
+	reqParams["fromBlock"] = hexutil.EncodeUint64(bnInterval[0])
+	if len(bnInterval) > 1 {
+		reqParams["toBlock"] = hexutil.EncodeUint64(bnInterval[1])
+	} else {
+		reqParams["toBlock"] = "latest"
+	}
 	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "eth_getLogs",
@@ -102,8 +43,7 @@ func getLogsBuildParams(addresses []string, topic string, fromBlock, toBlock uin
 	return json.MarshalIndent(payload, "", "  ")
 }
 
-func getEthEventsLogsOfTopic(collection collections.Collection, topic string, bnSlice []uint64) ([]*EthEventRes, error) {
-
+func getEthEventsLogsReq(collection collections.Collection, topic string, bnInterval []uint64) (*EthResponse, error) {
 	addresses := getAddresses(collection)
 	if len(addresses) == 0 {
 		return nil, errors.New("no addresses found")
@@ -111,51 +51,86 @@ func getEthEventsLogsOfTopic(collection collections.Collection, topic string, bn
 
 	url := fmt.Sprintf("https://mainnet.infura.io/v3/%s", os.Getenv("INFURA_API_KEY"))
 
-	var result any
-
-	payload, err := getLogsBuildParams(addresses, topic, bnSlice[0], bnSlice[1])
+	payload, err := getLogsBuildParams(addresses, topic, bnInterval)
 	if err != nil {
 		return nil, err
 	}
 	response := &EthResponse{}
 	err = helpers.PostData(url, "", payload, response)
-	if err != nil {
-		return nil, err
-	} else if response.Error != nil {
-		errorMap := response.Error.(map[string]interface{})
-		errorMessage := errorMap["message"].(string)
-		return nil, errors.New(strings.ToLower(errorMessage))
-	} else {
-		result = response.Result
-	}
 
-	var events []*EthEventRes
-	resJson, err := json.Marshal(result)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(resJson, &events)
-	if err != nil {
-		return nil, err
-	}
-
-	return events, nil
+	return response, err
 }
 
-func getEthEventsLogs(collection collections.Collection, bnSlice []uint64) ([]*EthEventRes, error) {
-	events := make([]*EthEventRes, 0)
-	topics, _ := getTopicInfo(collection)
-
-	for _, topic := range topics {
-		topicEvents, err := getEthEventsLogsOfTopic(collection, topic, bnSlice)
+func handleEthEventsResponse(response *EthResponse) ([]*EthEventRes, []uint64, error) {
+	if response.Error != nil {
+		message := "an error occurred on fetching data from Infura API !"
+		if reflect.TypeOf(response.Error).Kind() == reflect.Map {
+			code := response.Error.(map[string]interface{})["code"].(float64)
+			if code == -32005 {
+				errorStr, err := json.Marshal(response.Error)
+				if err != nil {
+					return nil, nil, err
+				}
+				errorPayload := &EthBlockRangeError{}
+				err = json.Unmarshal(errorStr, errorPayload)
+				if err != nil {
+					return nil, nil, err
+				}
+				//v, _ := json.MarshalIndent(errorPayload, "", "  ")
+				//println(string(errorStr))
+				bnFrom, err := hexutil.DecodeUint64(errorPayload.Data.From)
+				if err != nil {
+					return nil, nil, err
+				}
+				bnTo, err := hexutil.DecodeUint64(errorPayload.Data.To)
+				if err != nil {
+					return nil, nil, err
+				}
+				return nil, []uint64{bnFrom, bnTo}, nil
+			} else {
+				message = response.Error.(map[string]interface{})["message"].(string)
+			}
+		}
+		return nil, nil, errors.New(message)
+	} else {
+		var events []*EthEventRes
+		resJson, err := json.Marshal(response.Result)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		if len(topicEvents) > 0 {
-			events = append(events, topicEvents...)
+		err = json.Unmarshal(resJson, &events)
+		if err != nil {
+			return nil, nil, err
 		}
-		//events = slices.Concat(events, topicEvents)
+		return events, nil, nil
+	}
+}
+
+func getEthEventsLogsOfTopic(collection collections.Collection, topic string, latestFetchedBlockNumber uint64) ([]*EthEventRes, uint64, error) {
+
+	response, err := getEthEventsLogsReq(collection, topic, []uint64{latestFetchedBlockNumber + 1})
+	if err != nil {
+		return nil, 0, err
+	}
+	events, bnInterval, err := handleEthEventsResponse(response)
+	if err != nil {
+		return nil, 0, err
+	} else if bnInterval != nil {
+		response, err = getEthEventsLogsReq(collection, topic, bnInterval)
+		if err != nil {
+			return nil, 0, err
+		}
+		events, _, err = handleEthEventsResponse(response)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
-	return events, nil
+	nextLFBlockNumber := latestFetchedBlockNumber
+	if len(events) > 0 {
+		tmp := *events[len(events)-1].BlockNumber
+		nextLFBlockNumber, err = hexutil.DecodeUint64(tmp)
+	}
+
+	return events, nextLFBlockNumber, err
 }

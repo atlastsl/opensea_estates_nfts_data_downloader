@@ -37,10 +37,22 @@ type EthResponse struct {
 	Result  any    `json:"result"`
 }
 
+type EthBlockRangeError struct {
+	Code    float64                `json:"code"`
+	Message string                 `json:"message"`
+	Data    EthBlockRangeErrorData `json:"data"`
+}
+
+type EthBlockRangeErrorData struct {
+	From  string  `json:"from"`
+	Limit float64 `json:"limit"`
+	To    string  `json:"to"`
+}
+
 type BlockNumber struct {
 	mgm.DefaultModel
 	Collection    string `json:"collection" bson:"collection,omitempty"`
+	Topic         string `json:"topic" bson:"topic,omitempty"`
 	Chain         string `json:"chain" bson:"chain,omitempty"`
 	LatestFetched uint64 `json:"latest_fetched" bson:"latest_fetched,omitempty"`
-	LatestTrue    uint64 `json:"latest_true" bson:"latest_true,omitempty"`
 }

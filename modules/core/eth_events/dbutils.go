@@ -4,44 +4,32 @@ import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
-	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func getLatestFetchedBlockNumber(collection collections.Collection, chain string, dbInstance *mongo.Database) (uint64, error) {
+func getLatestFetchedBlockNumber(collection collections.Collection, chain string, dbInstance *mongo.Database) (map[string]uint64, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &BlockNumber{})
-	bnRecord := &BlockNumber{}
-	err := dbCollection.FirstWithCtx(context.Background(), bson.M{"collection": string(collection), "chain": chain}, bnRecord)
-	found := true
-	defaultValue := uint64(0)
+	cursor, err := dbCollection.Find(context.Background(), bson.M{"collection": string(collection), "chain": chain})
+	defer cursor.Close(context.Background())
+	blockNumbers := make([]BlockNumber, 0)
+	err = cursor.All(context.Background(), &blockNumbers)
 	if err != nil {
-		if !errors.Is(err, mongo.ErrNoDocuments) {
-			return defaultValue, err
-		}
-		found = false
+		return nil, err
 	}
-	if !found {
-		return defaultValue, nil
-	} else {
-		return bnRecord.LatestFetched, nil
+	result := make(map[string]uint64)
+	for _, number := range blockNumbers {
+		result[number.Topic] = number.LatestFetched
 	}
+	return result, nil
 }
 
-func saveLatestFetchedBlockNumber(collection collections.Collection, chain string, newValue uint64, dbInstance *mongo.Database) error {
+func saveLatestFetchedBlockNumber(collection collections.Collection, chain string, topic string, newValue uint64, dbInstance *mongo.Database) error {
 	dbCollection := database.CollectionInstance(dbInstance, &BlockNumber{})
 	forOptions := &options.FindOneAndUpdateOptions{}
-	payload := bson.M{"$set": bson.M{"latest_fetched": newValue, "collection": string(collection), "chain": chain}}
-	result := dbCollection.FindOneAndUpdate(context.Background(), bson.M{"collection": string(collection)}, payload, forOptions.SetUpsert(true))
-	return result.Err()
-}
-
-func saveLatestTrueBlockNumber(collection collections.Collection, chain string, newValue uint64, dbInstance *mongo.Database) error {
-	dbCollection := database.CollectionInstance(dbInstance, &BlockNumber{})
-	forOptions := &options.FindOneAndUpdateOptions{}
-	payload := bson.M{"$set": bson.M{"latest_true": newValue, "collection": string(collection), "chain": chain}}
-	result := dbCollection.FindOneAndUpdate(context.Background(), bson.M{"collection": string(collection)}, payload, forOptions.SetUpsert(true))
+	payload := bson.M{"$set": bson.M{"latest_fetched": newValue, "collection": string(collection), "chain": chain, "topic": topic}}
+	result := dbCollection.FindOneAndUpdate(context.Background(), bson.M{"collection": string(collection), "topic": topic}, payload, forOptions.SetUpsert(true))
 	return result.Err()
 }
 

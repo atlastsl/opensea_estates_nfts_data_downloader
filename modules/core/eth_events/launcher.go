@@ -43,19 +43,25 @@ func (x EthEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 	defer database.CloseDatabaseConnection(databaseInstance)
 	worker.LoggingExtra("Connection to database OK!")
 
-	worker.LoggingExtra("Get Block Numbers Slices...")
-	bnSlices, err := getSlicesOfBlockNumbers(x.Collection, databaseInstance)
+	worker.LoggingExtra("Get Latest Block Numbers fetched...")
+	blockNumbers, err := getLatestFetchedBlockNumbers(x.Collection, databaseInstance)
 	if err != nil {
-		worker.LoggingError("Failed to get block numbers slices !", err)
+		worker.LoggingError("Failed to Get Latest Block Numbers fetched !", err)
 		return
 	}
-	worker.LoggingExtra("Get Block Numbers Slices OK!")
-	if len(bnSlices) == 0 {
-		worker.LoggingExtra("Block Numbers up to date !!")
-		return
-	}
+	worker.LoggingExtra("Get Latest Block Numbers fetched OK!")
 
-	iSlice := 0
+	worker.LoggingExtra("Build topics list...")
+	topics, _ := getTopicInfo(x.Collection)
+	if len(topics) == 0 {
+		worker.LoggingExtra("No topics found!")
+		return
+	}
+	worker.LoggingExtra("Topics list OK !")
+	iTopic := 0
+	currentTopic := topics[iTopic]
+	currentBN, _ := blockNumbers[currentTopic]
+
 	worker.LoggingExtra("Start fetching eth events logs !")
 	for !flag {
 
@@ -69,16 +75,21 @@ func (x EthEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 			var data any = nil
 			var err0 error = nil
 
-			task := fmt.Sprintf("%d-%d", bnSlices[iSlice][0], bnSlices[iSlice][1])
+			task := fmt.Sprintf("%s-%d", currentTopic, currentBN)
 
-			response, err2 := getEthEventsLogs(x.Collection, bnSlices[iSlice])
+			response, nextLFBN, err2 := getEthEventsLogsOfTopic(x.Collection, currentTopic, currentBN)
 			if err2 != nil {
 				err0 = err2
 			} else {
 				data = map[string]any{task: response}
-				iSlice++
-				if iSlice >= len(bnSlices) {
+				if len(response) > 0 {
+					currentBN = nextLFBN
+				} else if iTopic+1 >= len(topics) {
 					flag = true
+				} else {
+					iTopic = iTopic + 1
+					currentTopic = topics[iTopic]
+					currentBN, _ = blockNumbers[currentTopic]
 				}
 			}
 

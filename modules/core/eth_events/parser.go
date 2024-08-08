@@ -57,7 +57,7 @@ func parseEthEventRes(eventRes *EthEventRes, collection collections.Collection, 
 	return event
 }
 
-func saveParsedEvents(events []*EthEvent, collection collections.Collection, getterKey string) error {
+func saveParsedEvents(events []*EthEvent, collection collections.Collection, task string) error {
 	dbInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		return err
@@ -66,10 +66,14 @@ func saveParsedEvents(events []*EthEvent, collection collections.Collection, get
 
 	err = saveEventsInDatabase(events, dbInstance)
 
-	tmp := strings.Split(getterKey, "-")
+	tmp := strings.Split(task, "-")
+	topic := tmp[0]
 	latestFetchedBN, _ := strconv.ParseUint(tmp[1], 10, 64)
+	if len(events) > 0 {
+		latestFetchedBN = uint64(events[len(events)-1].BlockNumber)
+	}
 	if collection == collections.CollectionDcl {
-		err = saveLatestFetchedBlockNumber(collection, EthereumChain, latestFetchedBN, dbInstance)
+		err = saveLatestFetchedBlockNumber(collection, EthereumChain, topic, latestFetchedBN, dbInstance)
 		if err != nil {
 			return err
 		}
@@ -78,7 +82,7 @@ func saveParsedEvents(events []*EthEvent, collection collections.Collection, get
 	return err
 }
 
-func parseEthEventsRes(eventRes []*EthEventRes, collection collections.Collection, getterKey string, wg *sync.WaitGroup) error {
+func parseEthEventsRes(eventRes []*EthEventRes, collection collections.Collection, task string, wg *sync.WaitGroup) error {
 	topicHexNames, topicNames := getTopicInfo(collection)
 	events := helpers.ArrayMap(eventRes, func(t *EthEventRes) (bool, *EthEvent) {
 		return true, parseEthEventRes(t, collection, topicHexNames, topicNames)
@@ -86,7 +90,7 @@ func parseEthEventsRes(eventRes []*EthEventRes, collection collections.Collectio
 
 	wg.Add(1)
 	go func() {
-		_ = saveParsedEvents(events, collection, getterKey)
+		_ = saveParsedEvents(events, collection, task)
 		wg.Done()
 	}()
 
