@@ -88,7 +88,7 @@ func parseEstateEventInfo(collection collections.Collection, estateEvents []*hel
 		events := make([]*EstateEvent, 0)
 		for _, estateEvent := range estateEvents {
 			if estateEvent != nil && estateEvent.Nft != nil && estateEvent.Nft.Collection != nil && estateEvent.Nft.Identifier != nil && estateEvent.Nft.Contract != nil && estateEvent.EventType != nil && estateEvent.Transaction != nil {
-				if slices.Contains(validContracts, *estateEvent.Nft.Contract) {
+				if slices.Contains(validContracts, *estateEvent.Nft.Contract) && *estateEvent.Nft.TokenStandard == "erc721" {
 					events = append(events, parseEstateEventInfoProcess(estateEvent))
 				}
 			}
