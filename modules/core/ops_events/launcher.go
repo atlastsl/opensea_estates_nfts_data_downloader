@@ -41,7 +41,7 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Connection to database OK!")
 
 	worker.LoggingExtra("Get latest event timestamp from database...")
-	latestEvtTimestamp, err := getLatestEventTimestamp(x.Collection, databaseInstance)
+	_, err = getLatestEventTimestamp(x.Collection, databaseInstance)
 	if err != nil {
 		worker.LoggingError("Failed to get latest event timestamp from database !", err)
 		return
@@ -49,7 +49,7 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Get latest event timestamp from database OK!")
 
 	flag := false
-	nextToken := ""
+	nextToken := "LWV2ZW50X3RpbWVzdGFtcD0yMDIwLTEwLTE1KzE1JTNBMTglM0EzMSYtZXZlbnRfdHlwZT1zdWNjZXNzZnVsJi1waz03NDEwODU2OQ=="
 
 	worker.LoggingExtra("Start fetching Opensea events logs !")
 	for !flag {
@@ -73,7 +73,7 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 			if err2 != nil {
 				err = err2
 			} else {
-				eventsToSave := helpers.ArrayFilter(response.Events, func(event *helpers.OpenseaNftEvent) bool {
+				/*eventsToSave := helpers.ArrayFilter(response.Events, func(event *helpers.OpenseaNftEvent) bool {
 					return int64(*event.EventTimestamp) > latestEvtTimestamp
 				})
 				eventsToIgnore := helpers.ArrayFilter(response.Events, func(event *helpers.OpenseaNftEvent) bool {
@@ -83,6 +83,12 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 				if len(eventsToIgnore) > 0 {
 					flag = true
 				} else if response.Next == nil {
+					flag = true
+				} else {
+					nextToken = *response.Next
+				}*/
+				mapData := map[string][]*helpers.OpenseaNftEvent{task: response.Events}
+				if response.Next == nil {
 					flag = true
 				} else {
 					nextToken = *response.Next
