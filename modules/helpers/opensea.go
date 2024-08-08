@@ -38,7 +38,7 @@ type OpenseaNftEvent struct {
 	Chain           *string                 `json:"chain"`
 	ClosingDate     *int                    `json:"closing_date"`
 	Nft             *OpenseaNftAsset        `json:"nft"`
-	Quantity        *int                    `json:"quantity"`
+	Quantity        *float64                `json:"quantity"`
 	Seller          *string                 `json:"seller"`
 	Buyer           *string                 `json:"buyer"`
 	Payment         *OpenseaNftEventPayment `json:"payment"`
