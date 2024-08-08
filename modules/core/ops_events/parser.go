@@ -2,8 +2,10 @@ package ops_events
 
 import (
 	"decentraland_data_downloader/modules/app/database"
+	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
-	"errors"
+	"os"
+	"slices"
 	"sync"
 	"time"
 )
@@ -77,14 +79,18 @@ func saveParsedEvents(events []*EstateEvent) error {
 	return err
 }
 
-func parseEstateEventInfo(estateEvents []*helpers.OpenseaNftEvent, wg *sync.WaitGroup) error {
+func parseEstateEventInfo(collection collections.Collection, estateEvents []*helpers.OpenseaNftEvent, wg *sync.WaitGroup) error {
+	var validContracts = make([]string, 0)
+	if collection == collections.CollectionDcl {
+		validContracts = []string{os.Getenv("DECENTRALAND_LAND_CONTRACT"), os.Getenv("DECENTRALAND_ESTATE_CONTRACT")}
+	}
 	if estateEvents != nil && len(estateEvents) > 0 {
-		events := make([]*EstateEvent, len(estateEvents))
-		for i, estateEvent := range estateEvents {
+		events := make([]*EstateEvent, 0)
+		for _, estateEvent := range estateEvents {
 			if estateEvent != nil && estateEvent.Nft != nil && estateEvent.Nft.Collection != nil && estateEvent.Nft.Identifier != nil && estateEvent.Nft.Contract != nil && estateEvent.EventType != nil && estateEvent.Transaction != nil {
-				events[i] = parseEstateEventInfoProcess(estateEvent)
-			} else {
-				return errors.New("invalid estate event info")
+				if slices.Contains(validContracts, *estateEvent.Nft.Contract) {
+					events = append(events, parseEstateEventInfoProcess(estateEvent))
+				}
 			}
 		}
 		wg.Add(1)

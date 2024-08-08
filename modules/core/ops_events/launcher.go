@@ -133,7 +133,7 @@ func (x OpsEventsDataParser) ParseData(worker *multithread.Worker, wg *sync.Wait
 						mainData := niMap["mainData"]
 						estateEvent := mainData.([]*helpers.OpenseaNftEvent)
 
-						err := parseEstateEventInfo(estateEvent, wg)
+						err := parseEstateEventInfo(x.Collection, estateEvent, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 
