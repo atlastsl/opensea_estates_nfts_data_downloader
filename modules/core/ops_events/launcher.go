@@ -49,7 +49,7 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Get latest event timestamp from database OK!")
 
 	flag := false
-	nextToken := "LWV2ZW50X3RpbWVzdGFtcD0yMDIwLTEwLTE1KzE1JTNBMTglM0EzMSYtZXZlbnRfdHlwZT1zdWNjZXNzZnVsJi1waz03NDEwODU2OQ=="
+	nextToken := "LWV2ZW50X3RpbWVzdGFtcD0yMDE5LTAxLTA5KzE0JTNBMDAlM0E0MiYtZXZlbnRfdHlwZT10cmFuc2ZlciYtcGs9NzU5MTU0Ng=="
 
 	worker.LoggingExtra("Start fetching Opensea events logs !")
 	for !flag {
