@@ -39,7 +39,7 @@ func saveEventsInDatabase(events []*EthEvent, dbInstance *mongo.Database) error 
 
 		operations := make([]mongo.WriteModel, len(events))
 		for i, event := range events {
-			var filterPayload = bson.M{"collection": event.Collection, "address": event.Address, "event_id": event.EventId}
+			var filterPayload = bson.M{"collection": event.Collection, "address": event.Address, "event_id": event.EventId, "transaction_hash": event.TransactionHash}
 			operations[i] = mongo.NewReplaceOneModel().SetFilter(filterPayload).SetReplacement(event).SetUpsert(true)
 		}
 		_, err := dbCollection.BulkWrite(context.Background(), operations)

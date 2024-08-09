@@ -5,6 +5,7 @@ import (
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
+	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -41,7 +42,7 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Connection to database OK!")
 
 	worker.LoggingExtra("Get latest event timestamp from database...")
-	_, err = getLatestEventTimestamp(x.Collection, databaseInstance)
+	latestEvtTimestamp, err := getLatestEventTimestamp(x.Collection, databaseInstance)
 	if err != nil {
 		worker.LoggingError("Failed to get latest event timestamp from database !", err)
 		return
@@ -49,7 +50,7 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Get latest event timestamp from database OK!")
 
 	flag := false
-	nextToken := "LWV2ZW50X3RpbWVzdGFtcD0yMDE5LTAxLTA5KzE0JTNBMDAlM0E0MiYtZXZlbnRfdHlwZT10cmFuc2ZlciYtcGs9NzU5MTU0Ng=="
+	nextToken := os.Getenv("OPS_EVENT_NEXT_TOKEN")
 
 	worker.LoggingExtra("Start fetching Opensea events logs !")
 	for !flag {
@@ -73,7 +74,7 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 			if err2 != nil {
 				err = err2
 			} else {
-				/*eventsToSave := helpers.ArrayFilter(response.Events, func(event *helpers.OpenseaNftEvent) bool {
+				eventsToSave := helpers.ArrayFilter(response.Events, func(event *helpers.OpenseaNftEvent) bool {
 					return int64(*event.EventTimestamp) > latestEvtTimestamp
 				})
 				eventsToIgnore := helpers.ArrayFilter(response.Events, func(event *helpers.OpenseaNftEvent) bool {
@@ -86,13 +87,13 @@ func (x OpsEventsMainDataGetter) FetchData(worker *multithread.Worker) {
 					flag = true
 				} else {
 					nextToken = *response.Next
-				}*/
-				mapData := map[string][]*helpers.OpenseaNftEvent{task: response.Events}
+				}
+				/*mapData := map[string][]*helpers.OpenseaNftEvent{task: response.Events}
 				if response.Next == nil {
 					flag = true
 				} else {
 					nextToken = *response.Next
-				}
+				}*/
 				data = mapData
 			}
 
