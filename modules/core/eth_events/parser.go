@@ -27,6 +27,11 @@ func dclParseEventTopic(topics []string, topicHexNames, topicNames []string) (st
 		eventParams["estate"], _ = helpers.HexConvertToInt(topics[1])
 		eventParams["land"], _ = helpers.HexConvertToString(topics[2])
 		eventParams["receiver"] = helpers.HexRemoveLeadingZeros(topics[3])
+	} else if eventNameHex == topicHexNames[3] { //dclTransfer0HexName
+		eventName = topicNames[3]
+		eventParams["sender"] = helpers.HexRemoveLeadingZeros(topics[1])
+		eventParams["receiver"] = helpers.HexRemoveLeadingZeros(topics[2])
+		eventParams["asset"], _ = helpers.HexConvertToString(topics[3])
 	}
 	return eventName, eventParams
 }

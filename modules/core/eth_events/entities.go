@@ -15,7 +15,7 @@ type EthEventRes struct {
 }
 
 type EthEvent struct {
-	mgm.DefaultModel
+	mgm.DefaultModel `bson:",inline"`
 	Collection       string         `bson:"collection,omitempty"`
 	Address          string         `bson:"address,omitempty"`
 	EventId          string         `bson:"event_id,omitempty"`
