@@ -3,7 +3,10 @@ package movements
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
+	"decentraland_data_downloader/modules/core/assets"
 	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/ops_events"
+	"decentraland_data_downloader/modules/helpers"
 	"reflect"
 	"sync"
 	"time"
@@ -20,7 +23,20 @@ func (x AssetsMovementsAddDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = true
 	var err error = nil
 
-	multithread.PublishDataNotification(worker, "-", data, err)
+	worker.LoggingExtra("Connecting to database...")
+	databaseInstance, err := database.NewDatabaseConnection()
+	if err != nil {
+		worker.LoggingError("Failed to connect to database !", err)
+		return
+	}
+	defer database.CloseDatabaseConnection(databaseInstance)
+	worker.LoggingExtra("Connected to database successfully !")
+
+	worker.LoggingExtra("Fetching all estates assets and all currency prices from database...")
+	data, err = getAdditionalData(x.Collection, databaseInstance)
+	worker.LoggingExtra("Fetching all estates assets and all currency prices from database OK. Publishing data...")
+
+	multithread.PublishDataNotification(worker, "-", helpers.AnytiseData(data), err)
 	multithread.PublishDoneNotification(worker)
 }
 
@@ -30,9 +46,8 @@ type AssetsMovementsMainDataGetter struct {
 
 func (x AssetsMovementsMainDataGetter) FetchData(worker *multithread.Worker) {
 
-	flag := false
-	skip := int64(0)
-	limit := int64(100)
+	var data any = nil
+	var err error = nil
 
 	worker.LoggingExtra("Connecting to database...")
 	databaseInstance, err := database.NewDatabaseConnection()
@@ -43,43 +58,13 @@ func (x AssetsMovementsMainDataGetter) FetchData(worker *multithread.Worker) {
 	defer database.CloseDatabaseConnection(databaseInstance)
 	worker.LoggingExtra("Connection to database OK!")
 
-	worker.LoggingExtra("Start fetching Transactions Hashes of Opensea events from database !")
-	for !flag {
-
-		interrupted := (*worker.ItrChecker)(worker)
-		if interrupted {
-			worker.LoggingExtra("Break getter loop. Process interrupted !")
-			flag = true
-		} else {
-			worker.LoggingExtra("Getting more data...")
-
-			var data any = nil
-			var err error = nil
-
-			transactions, e0 := getAssetEventsFromDatabase(x.Collection, skip, limit, databaseInstance)
-			if e0 != nil {
-				err = e0
-			} else if transactions == nil || len(transactions) == 0 {
-				flag = true
-				worker.LoggingExtra("Transactions hashed all fetched ! Break Loop !")
-			} else {
-				skip = skip + int64(len(transactions))
-				data = transactions
-			}
-
-			multithread.PublishDataNotification(worker, "-", data, err)
-			if err != nil {
-				worker.LoggingError("Error when getting data !", err)
-				flag = true
-			} else {
-				worker.LoggingExtra("Sleeping 1s before getting more data...")
-				time.Sleep(1 * time.Second)
-			}
-
-		}
-
+	worker.LoggingExtra("Fetching transactions hashes from database...")
+	if x.Collection == collections.CollectionDcl {
+		data, err = getAllEventsTransactionsHashes(x.Collection, databaseInstance)
 	}
+	worker.LoggingExtra("Fetching transactions hashes from database OK. Publishing data...")
 
+	multithread.PublishDataNotification(worker, "-", helpers.AnytiseData(data), err)
 	multithread.PublishDoneNotification(worker)
 
 }
@@ -88,7 +73,7 @@ type AssetsMovementsDataParser struct {
 	Collection collections.Collection
 }
 
-func (x AssetsMovementsDataParser) ParseData(worker *multithread.Worker, _ *sync.WaitGroup) {
+func (x AssetsMovementsDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
 	flag := false
 
 	worker.LoggingExtra("Connecting to database...")
@@ -114,12 +99,16 @@ func (x AssetsMovementsDataParser) ParseData(worker *multithread.Worker, _ *sync
 				} else if task == "" {
 					flag = true
 				} else if nextInput != nil {
-					if reflect.TypeOf(nextInput).Kind() == reflect.String {
+					if reflect.TypeOf(nextInput).Kind() == reflect.Map {
 						niMap := nextInput.(map[string]any)
 						mainData := niMap["mainData"]
-						transaction := mainData.(string)
+						addData := niMap["addData"].(map[string]any)
+						allAssets := addData["assets"].([]*assets.EstateAsset)
+						allPrices := addData["prices"].([]*CurrencyPrice)
+						aloneSales := addData["alone_sales"].([]*ops_events.EstateEvent)
+						transaction := mainData.(*TxHash)
 
-						err = parseEstateMovement(x.Collection, transaction, databaseInstance)
+						err = parseEstateMovement(x.Collection, allAssets, allPrices, aloneSales, transaction, databaseInstance, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 
