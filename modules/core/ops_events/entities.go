@@ -8,6 +8,7 @@ type EstateEvent struct {
 	Contract         string  `bson:"contract,omitempty"`
 	AssetId          string  `bson:"asset_id,omitempty"`
 	Transaction      string  `bson:"transaction,omitempty"`
+	FixedTransaction string  `bson:"fixed_transaction,omitempty"`
 	EventType        string  `bson:"event_type,omitempty"`
 	Exchange         string  `bson:"exchange,omitempty"`
 	Chain            string  `bson:"chain,omitempty"`

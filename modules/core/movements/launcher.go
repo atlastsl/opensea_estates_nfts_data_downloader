@@ -5,7 +5,6 @@ import (
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/assets"
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/ops_events"
 	"decentraland_data_downloader/modules/helpers"
 	"reflect"
 	"sync"
@@ -104,11 +103,10 @@ func (x AssetsMovementsDataParser) ParseData(worker *multithread.Worker, wg *syn
 						mainData := niMap["mainData"]
 						addData := niMap["addData"].(map[string]any)
 						allAssets := addData["assets"].([]*assets.EstateAsset)
-						allPrices := addData["prices"].([]*CurrencyPrice)
-						aloneSales := addData["alone_sales"].([]*ops_events.EstateEvent)
+						allPrices := addData["prices"].(map[string][]*CurrencyPrice)
 						transaction := mainData.(*TxHash)
 
-						err = parseEstateMovement(x.Collection, allAssets, allPrices, aloneSales, transaction, databaseInstance, wg)
+						err = parseEstateMovement(x.Collection, allAssets, allPrices, transaction, databaseInstance, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

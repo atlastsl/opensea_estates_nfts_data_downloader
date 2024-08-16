@@ -16,14 +16,9 @@ func getAdditionalData(collection collections.Collection, dbInstance *mongo.Data
 		if e1 != nil {
 			return nil, e1
 		}
-		aloneSales, e1 := getAllAloneEstateSaleEvents(collection, dbInstance)
-		if e1 != nil {
-			return nil, e1
-		}
 		data := map[string]any{
-			"assets":      assets,
-			"prices":      prices,
-			"alone_sales": aloneSales,
+			"assets": assets,
+			"prices": prices,
 		}
 		return data, nil
 	}

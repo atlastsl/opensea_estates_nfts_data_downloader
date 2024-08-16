@@ -40,6 +40,8 @@ func safeGetEthEventLogParam(params map[string]any, paramName string) (string, b
 			return strconv.FormatInt(int64(paramRawVal.(int)), 10), true
 		} else if reflect.TypeOf(paramRawVal).Kind() == reflect.Int64 {
 			return strconv.FormatInt(paramRawVal.(int64), 10), true
+		} else if reflect.TypeOf(paramRawVal).Kind() == reflect.Int32 {
+			return strconv.FormatInt(int64(paramRawVal.(int32)), 10), true
 		} else if reflect.TypeOf(paramRawVal).Kind() == reflect.Float64 {
 			return strconv.FormatFloat(paramRawVal.(float64), 'f', 10, 64), true
 		}
@@ -73,6 +75,7 @@ func safeGetEstateAssetUpdate(updates *[]*EstateAssetUpdates, collection, contra
 
 func safeGetEstateAssetMinDistance(allDistances []*tiles_distances.MapTileMacroDistance, macroType string) *tiles_distances.MapTileMacroDistance {
 	result := new(tiles_distances.MapTileMacroDistance)
+	result.MacroType = macroType
 	if allDistances != nil && len(allDistances) > 0 {
 		mtDistances := helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
 			return distance.MacroType == macroType
@@ -135,9 +138,48 @@ func dclConvertEthEventsToUpdates(ethEvents []*eth_events.EthEvent) (updates []*
 	estatesContract := os.Getenv("DECENTRALAND_ESTATE_CONTRACT")
 
 	// Get all transfers logs as array
-	transfersLogs := helpers.ArrayFilter(ethEvents, func(event *eth_events.EthEvent) bool {
+	transfersLogsTmp := helpers.ArrayFilter(ethEvents, func(event *eth_events.EthEvent) bool {
 		return event.EventName == eventNames[0] || event.EventName == eventNames[3] //dclTransferHexName
 	})
+	// filter multi-events for one asset
+	assetsIds := make([]string, 0)
+	for _, t := range transfersLogsTmp {
+		assetPar, ok := t.EventParams["asset"]
+		if ok && !slices.Contains(assetsIds, assetPar.(string)) {
+			assetsIds = append(assetsIds, assetPar.(string))
+		}
+	}
+	transfersLogs := make([]*eth_events.EthEvent, 0)
+	for _, assetId := range assetsIds {
+		transfersLogsOfAssets := helpers.ArrayFilter(transfersLogsTmp, func(t *eth_events.EthEvent) bool {
+			tAssetId, hasAssetId := safeGetEthEventLogParam(t.EventParams, "asset")
+			return hasAssetId && tAssetId == assetId
+		})
+		if len(transfersLogsOfAssets) > 0 {
+			if len(transfersLogsOfAssets) > 1 {
+				senders := helpers.ArrayMap(transfersLogsOfAssets, func(t *eth_events.EthEvent) (bool, string) {
+					tSender, hasSender := safeGetEthEventLogParam(t.EventParams, "sender")
+					return hasSender, tSender
+				}, false, "")
+				receivers := helpers.ArrayMap(transfersLogsOfAssets, func(t *eth_events.EthEvent) (bool, string) {
+					tReceiver, hasReceiver := safeGetEthEventLogParam(t.EventParams, "receiver")
+					return hasReceiver, tReceiver
+				}, false, "")
+				fSenders := helpers.ArrayFilter(senders, func(s string) bool {
+					return !slices.Contains(receivers, s)
+				})
+				fReceivers := helpers.ArrayFilter(receivers, func(s string) bool {
+					return !slices.Contains(senders, s)
+				})
+				event := transfersLogsOfAssets[0]
+				event.EventParams["sender"] = fSenders[0]
+				event.EventParams["receiver"] = fReceivers[0]
+				transfersLogs = append(transfersLogs, event)
+			} else {
+				transfersLogs = append(transfersLogs, transfersLogsOfAssets[0])
+			}
+		}
+	}
 
 	// loop every transfer log
 	for _, event := range transfersLogs {
@@ -176,7 +218,7 @@ func dclConvertEthEventsToUpdates(ethEvents []*eth_events.EthEvent) (updates []*
 				// `RemoveLandFromEstate` event log found
 				if j >= 0 {
 					// Get estate sender
-					estate := ethEvents[j].EventParams["estate"].(string)
+					estate, _ := safeGetEthEventLogParam(ethEvents[j].EventParams, "estate")
 					// Safe initialize updates for estate to be modified (estate sender)
 					estateUpdate := safeGetEstateAssetUpdate(&updates, string(collections.CollectionDcl), estatesContract, estate)
 					// Record "land removed" update for sender estate
@@ -191,7 +233,7 @@ func dclConvertEthEventsToUpdates(ethEvents []*eth_events.EthEvent) (updates []*
 			}
 		}
 		// Safe initialize updates for moved land (assetId)
-		assetUpdate := safeGetEstateAssetUpdate(&updates, string(collections.CollectionDcl), landsContract, assetId)
+		assetUpdate := safeGetEstateAssetUpdate(&updates, string(collections.CollectionDcl), contract, assetId)
 		// Record "new owner" update for moved land (assetId)
 		assetUpdate.newOwner = receiver
 	}
@@ -210,6 +252,7 @@ Outputs :
 */
 func dclSaveUpdatesItemAsMetadata(allAssets []*assets.EstateAsset, updates *EstateAssetUpdates, transaction *TxHash) ([]*assets.EstateAssetMetadata, error) {
 	dbInstance, err := database.NewDatabaseConnection()
+	defer database.CloseDatabaseConnection(dbInstance)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +296,7 @@ func dclSaveUpdatesItemAsMetadata(allAssets []*assets.EstateAsset, updates *Esta
 			// new must add some lands
 			if updates.inLands != nil && len(updates.inLands) > 0 {
 				// Get coordinates of lands to add to estate
-				coords, err := getCoordinatesOfLandsByIdentifiers(updates.collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), updates.outLands, dbInstance)
+				coords, err := getCoordinatesOfLandsByIdentifiers(updates.collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), updates.inLands, dbInstance)
 				if err != nil {
 					return nil, err
 				}
@@ -324,7 +367,7 @@ func dclSaveUpdatesItemAsMetadata(allAssets []*assets.EstateAsset, updates *Esta
 		newOwnerMtd := &assets.EstateAssetMetadata{
 			EstateAssetRef: assetEstate.ID,
 			MetadataType:   assets.MetadataTypeOwner,
-			DataType:       assets.MetadataDataTypeString,
+			DataType:       assets.MetadataDataTypeAddress,
 			Name:           assets.MetadataNameOwner,
 			DisplayName:    assets.MetadataDisNameOwner,
 			Value:          updates.newOwner,
@@ -367,54 +410,21 @@ func dclSaveUpdatesAsMetadata(allAssets []*assets.EstateAsset, updates []*Estate
 		return nil, allErrors[0]
 	}
 
+	/*for _, updateItem := range updates {
+		metadataListI, err := dclSaveUpdatesItemAsMetadata(allAssets, updateItem, transaction)
+		if err != nil {
+			return nil, err
+		}
+		allMetadata = append(allMetadata, metadataListI...)
+	}*/
+
 	return allMetadata, nil
 }
 
 /**
 * Filter Opensea Events (Take either transfer or sale)
  */
-func filterOpenseaEvents(opsEvents []*ops_events.EstateEvent, emptyHashSales []*ops_events.EstateEvent) (filtered []*ops_events.EstateEvent) {
-	filtered = make([]*ops_events.EstateEvent, 0)
-	if opsEvents != nil && len(opsEvents) > 0 {
-		transfers := helpers.ArrayFilter(opsEvents, func(event *ops_events.EstateEvent) bool {
-			return event.EventType == "transfer"
-		})
-		sales := helpers.ArrayFilter(opsEvents, func(event *ops_events.EstateEvent) bool {
-			return event.EventType == "sale"
-		})
-		for _, transfer := range transfers {
-			relatedSale1 := slices.IndexFunc(sales, func(sale *ops_events.EstateEvent) bool {
-				return sale.Transaction == transfer.Transaction && sale.Collection == transfer.Collection && sale.Contract == transfer.Contract && sale.AssetId == transfer.AssetId
-			})
-			relatedSale2 := slices.IndexFunc(emptyHashSales, func(sale *ops_events.EstateEvent) bool {
-				return sale.Transaction == transfer.Transaction && sale.Collection == transfer.Collection && sale.Contract == transfer.Contract && sale.AssetId == transfer.AssetId
-			})
-			if relatedSale1 >= 0 {
-				filtered = append(filtered, sales[relatedSale1])
-			} else if relatedSale2 >= 0 {
-				sale := *emptyHashSales[relatedSale2]
-				sale.Transaction = transfer.Transaction
-				filtered = append(filtered, &sale)
-			} else {
-				filtered = append(filtered, transfer)
-			}
-		}
-		for _, sale := range sales {
-			relatedTransfer := slices.IndexFunc(transfers, func(transfer *ops_events.EstateEvent) bool {
-				return sale.Transaction == transfer.Transaction && sale.Collection == transfer.Collection && sale.Contract == transfer.Contract && sale.AssetId == transfer.AssetId
-			})
-			if relatedTransfer <= 0 {
-				filtered = append(filtered, sale)
-			}
-		}
-	}
-	return
-}
-
-/**
-* Filter Opensea Events (Take either transfer or sale)
- */
-func parseOpenseaEvents(allAssets []*assets.EstateAsset, allPrices []*CurrencyPrice, opsEvents []*ops_events.EstateEvent) ([]*AssetMovement, error) {
+func parseOpenseaEvents(allAssets []*assets.EstateAsset, allPrices map[string][]*CurrencyPrice, opsEvents []*ops_events.EstateEvent) ([]*AssetMovement, error) {
 	movements := make([]*AssetMovement, 0)
 	if opsEvents != nil && len(opsEvents) > 0 {
 		for _, event := range opsEvents {
@@ -434,7 +444,7 @@ func parseOpenseaEvents(allAssets []*assets.EstateAsset, allPrices []*CurrencyPr
 			movement := &AssetMovement{
 				AssetRef:  estateAsset.ID,
 				Movement:  event.EventType,
-				TxHash:    event.Transaction,
+				TxHash:    getOpsEventTransactionHash(event),
 				Exchange:  event.Exchange,
 				Chain:     event.Chain,
 				MvtDate:   time.UnixMilli(event.EvtTimestamp * 1000),
@@ -447,10 +457,13 @@ func parseOpenseaEvents(allAssets []*assets.EstateAsset, allPrices []*CurrencyPr
 			}
 			movement.CreatedAt = time.Now()
 			movement.UpdatedAt = time.Now()
-			price := safeGetCurrencyPrice(allPrices, time.UnixMilli(event.EvtTimestamp*1000))
-			if price > 0 {
-				movement.ValueUsd = amount * price
-				movement.CcyPrice = price
+			currencyPrices, hasCp := allPrices[event.Currency]
+			if hasCp && amount > 0 {
+				price := safeGetCurrencyPrice(currencyPrices, time.UnixMilli(event.EvtTimestamp*1000))
+				if price > 0 {
+					movement.ValueUsd = amount * price
+					movement.CcyPrice = price
+				}
 			}
 			movements = append(movements, movement)
 		}
@@ -462,14 +475,14 @@ func parseOpenseaEvents(allAssets []*assets.EstateAsset, allPrices []*CurrencyPr
 	return movements, nil
 }
 
-func saveInDatabase(allMetadata []*assets.EstateAssetMetadata, movements []*AssetMovement) error {
-	dbInstance, err := database.NewDatabaseConnection()
+func saveInDatabase(allMetadata []*assets.EstateAssetMetadata, movements []*AssetMovement, dbInstance *mongo.Database) error {
+	/*dbInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		return err
 	}
-	defer database.CloseDatabaseConnection(dbInstance)
+	defer database.CloseDatabaseConnection(dbInstance)*/
 
-	err = saveMetadataInDatabase(allMetadata, dbInstance)
+	err := saveMetadataInDatabase(allMetadata, dbInstance)
 	if err != nil {
 		return err
 	}
@@ -481,7 +494,7 @@ func saveInDatabase(allMetadata []*assets.EstateAssetMetadata, movements []*Asse
 	return nil
 }
 
-func parseEstateMovement(collection collections.Collection, allAssets []*assets.EstateAsset, allPrices []*CurrencyPrice, aloneSales []*ops_events.EstateEvent, transaction *TxHash, dbInstance *mongo.Database, wg *sync.WaitGroup) error {
+func parseEstateMovement(collection collections.Collection, allAssets []*assets.EstateAsset, allPrices map[string][]*CurrencyPrice, transaction *TxHash, dbInstance *mongo.Database, _ *sync.WaitGroup) error {
 	ethEvents, err := getEthEventsLogsByTransactionHash(collection, transaction.hash, dbInstance)
 	if err != nil {
 		return err
@@ -496,17 +509,18 @@ func parseEstateMovement(collection collections.Collection, allAssets []*assets.
 	if err != nil {
 		return err
 	}
-	filteredOpsEvents := filterOpenseaEvents(opsEvents, aloneSales)
+	filteredOpsEvents := cleanTxHashOpsEvents(opsEvents)
 	movements, err := parseOpenseaEvents(allAssets, allPrices, filteredOpsEvents)
 	if err != nil {
 		return err
 	}
 
-	wg.Add(1)
+	/*wg.Add(1)
 	go func() {
-		_ = saveInDatabase(allMetadata, movements)
+		_ = saveInDatabase(allMetadata, movements, dbInstance)
 		wg.Done()
-	}()
+	}()*/
+	err = saveInDatabase(allMetadata, movements, dbInstance)
 
 	return err
 }

@@ -28,12 +28,15 @@ func getAllEventsTransactionsHashes(collection collections.Collection, dbInstanc
 	matchStage := bson.D{
 		{"$match", bson.D{{"collection", string(collection)}}},
 	}
+	hashStage := bson.D{
+		{"$addFields", bson.D{{"transaction_hash", bson.D{{"$ifNull", bson.A{"$transaction", "$fixed_transaction"}}}}}},
+	}
 	fSortStage := bson.D{
 		{"$sort", bson.D{{"evt_timestamp", 1}}},
 	}
 	groupStage := bson.D{
 		{"$group", bson.D{
-			{"_id", "$transaction"},
+			{"_id", "$transaction_hash"},
 			{"nb", bson.D{{"$sum", 1}}},
 			{"timestamp", bson.D{{"$max", "$evt_timestamp"}}},
 		}},
@@ -41,10 +44,13 @@ func getAllEventsTransactionsHashes(collection collections.Collection, dbInstanc
 	sSortStage := bson.D{
 		{"$sort", bson.D{{"timestamp", 1}}},
 	}
-	limitStage := bson.D{
-		{"$limit", 1},
+	skipStage := bson.D{
+		{"$skip", 0},
 	}
-	cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, fSortStage, groupStage, sSortStage, limitStage})
+	_ = bson.D{
+		{"$limit", 20},
+	}
+	cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, hashStage, fSortStage, groupStage, sSortStage, skipStage})
 	//cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, fSortStage, groupStage, sSortStage})
 	if err != nil {
 		return nil, err
@@ -76,32 +82,28 @@ func getAllEstateAssets(collection collections.Collection, dbInstance *mongo.Dat
 	return results, err
 }
 
-func getAllAloneEstateSaleEvents(collection collections.Collection, dbInstance *mongo.Database) ([]*ops_events.EstateEvent, error) {
-	dbCollection := database.CollectionInstance(dbInstance, &ops_events.EstateEvent{})
-	cursor, err := dbCollection.Find(context.Background(), bson.M{"collection": string(collection), "event_type": "sale", "transaction": nil})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(context.Background())
-	results := make([]*ops_events.EstateEvent, 0)
-	err = cursor.All(context.Background(), &results)
-	return results, err
-}
-
-func getCurrencyPrices(collection collections.Collection, dbInstance *mongo.Database) ([]*CurrencyPrice, error) {
+func getCurrencyPrices(collection collections.Collection, dbInstance *mongo.Database) (map[string][]*CurrencyPrice, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &CurrencyPrice{})
 	currencies := make([]string, 0)
 	if collection == collections.CollectionDcl {
 		currencies = strings.Split(os.Getenv("CURRENCIES_DCL"), ",")
 	}
-	cursor, err := dbCollection.Find(context.Background(), bson.M{"currency": bson.M{"$in": helpers.BSONStringA(currencies)}})
-	if err != nil {
-		return nil, nil
+	prices := make(map[string][]*CurrencyPrice)
+	for _, currency := range currencies {
+		cursor, err := dbCollection.Find(context.Background(), bson.M{"currency": currency})
+		if err != nil {
+			return nil, nil
+		}
+		currencyPrices := make([]*CurrencyPrice, 0)
+		err = cursor.All(context.Background(), &currencyPrices)
+		if err != nil {
+			return nil, nil
+		}
+		_ = cursor.Close(context.Background())
+		prices[currency] = currencyPrices
 	}
-	defer cursor.Close(context.Background())
-	prices := make([]*CurrencyPrice, 0)
-	err = cursor.All(context.Background(), &prices)
-	return prices, err
+
+	return prices, nil
 }
 
 func getEthEventsLogsByTransactionHash(collection collections.Collection, transactionHash string, dbInstance *mongo.Database) ([]*eth_events.EthEvent, error) {
@@ -118,7 +120,7 @@ func getEthEventsLogsByTransactionHash(collection collections.Collection, transa
 
 func getEstateEventsLogsByTransactionHash(collection collections.Collection, transactionHash string, dbInstance *mongo.Database) ([]*ops_events.EstateEvent, error) {
 	assetEvtDbCol := database.CollectionInstance(dbInstance, &ops_events.EstateEvent{})
-	cursor, err := assetEvtDbCol.Find(context.Background(), bson.M{"collection": string(collection), "transaction": transactionHash})
+	cursor, err := assetEvtDbCol.Find(context.Background(), bson.M{"collection": string(collection), "$or": bson.A{bson.M{"transaction": transactionHash}, bson.M{"fixed_transaction": transactionHash}}})
 	if err != nil {
 		return nil, err
 	}

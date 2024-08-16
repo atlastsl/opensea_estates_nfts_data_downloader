@@ -71,6 +71,7 @@ const (
 	MetadataDataTypeFloat   = "float"
 	MetadataDataTypeBool    = "bool"
 	MetadataDataTypeString  = "string"
+	MetadataDataTypeAddress = "address"
 )
 
 const (
