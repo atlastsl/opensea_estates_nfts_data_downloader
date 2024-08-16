@@ -47,10 +47,10 @@ func getAllEventsTransactionsHashes(collection collections.Collection, dbInstanc
 	skipStage := bson.D{
 		{"$skip", 0},
 	}
-	limitStage := bson.D{
+	_ = bson.D{
 		{"$limit", 20},
 	}
-	cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, hashStage, fSortStage, groupStage, sSortStage, skipStage, limitStage})
+	cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, hashStage, fSortStage, groupStage, sSortStage, skipStage})
 	//cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, fSortStage, groupStage, sSortStage})
 	if err != nil {
 		return nil, nil, err
