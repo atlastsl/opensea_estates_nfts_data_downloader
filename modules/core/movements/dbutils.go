@@ -23,7 +23,7 @@ type TxHash struct {
 	timestamp int64
 }
 
-func getAllEventsTransactionsHashes(collection collections.Collection, dbInstance *mongo.Database) (map[string]*TxHash, error) {
+func getAllEventsTransactionsHashes(collection collections.Collection, dbInstance *mongo.Database) ([]string, map[string]*TxHash, error) {
 	assetEvtDbCol := database.CollectionInstance(dbInstance, &ops_events.EstateEvent{})
 	matchStage := bson.D{
 		{"$match", bson.D{{"collection", string(collection)}}},
@@ -47,27 +47,29 @@ func getAllEventsTransactionsHashes(collection collections.Collection, dbInstanc
 	skipStage := bson.D{
 		{"$skip", 0},
 	}
-	_ = bson.D{
+	limitStage := bson.D{
 		{"$limit", 20},
 	}
-	cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, hashStage, fSortStage, groupStage, sSortStage, skipStage})
+	cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, hashStage, fSortStage, groupStage, sSortStage, skipStage, limitStage})
 	//cursor, err := assetEvtDbCol.Aggregate(context.Background(), mongo.Pipeline{matchStage, fSortStage, groupStage, sSortStage})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer cursor.Close(context.Background())
 	results := make([]bson.M, 0)
 	err = cursor.All(context.Background(), &results)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	transactions := make(map[string]*TxHash)
-	for _, result := range results {
+	txHashes := make([]string, len(results))
+	for i, result := range results {
 		hash := result["_id"].(string)
 		timestamp := result["timestamp"].(int64)
+		txHashes[i] = hash
 		transactions[hash] = &TxHash{hash: hash, timestamp: timestamp}
 	}
-	return transactions, nil
+	return txHashes, transactions, nil
 }
 
 func getAllEstateAssets(collection collections.Collection, dbInstance *mongo.Database) ([]*assets.EstateAsset, error) {

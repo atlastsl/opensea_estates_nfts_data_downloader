@@ -8,7 +8,6 @@ import (
 	"decentraland_data_downloader/modules/core/ops_events"
 	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/helpers"
-	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"math"
@@ -263,7 +262,9 @@ func dclSaveUpdatesItemAsMetadata(allAssets []*assets.EstateAsset, updates *Esta
 	// get estate asset related to updates in allAssets list
 	assetEstate := safeGetEstateAsset(updates.collection, updates.contract, updates.identifier, allAssets)
 	if assetEstate == nil {
-		return nil, errors.New("{dclSaveUpdatesItemAsMetadata} estate asset not found")
+		println("{dclSaveUpdatesItemAsMetadata} estate asset not found")
+		return metadataList, nil
+		//return nil, errors.New("{dclSaveUpdatesItemAsMetadata} estate asset not found")
 	}
 
 	// asset related to updates in an estate
@@ -410,7 +411,8 @@ func dclSaveUpdatesAsMetadata(allAssets []*assets.EstateAsset, updates []*Estate
 		return nil, allErrors[0]
 	}
 
-	/*for _, updateItem := range updates {
+	/*allMetadata := make([]*assets.EstateAssetMetadata, 0)
+	for _, updateItem := range updates {
 		metadataListI, err := dclSaveUpdatesItemAsMetadata(allAssets, updateItem, transaction)
 		if err != nil {
 			return nil, err
@@ -430,9 +432,9 @@ func parseOpenseaEvents(allAssets []*assets.EstateAsset, allPrices map[string][]
 		for _, event := range opsEvents {
 			// get estate asset related to updates in allAssets list
 			estateAsset := safeGetEstateAsset(event.Collection, event.Contract, event.AssetId, allAssets)
-			if estateAsset == nil {
+			/*if estateAsset == nil {
 				return nil, errors.New("{parseOpenseaEvents} estate asset not found")
-			}
+			}*/
 			amount := event.Amount
 			if event.CCyDecimals > 0 {
 				bgAmt, decim := big.NewFloat(amount), new(big.Int)
@@ -442,18 +444,23 @@ func parseOpenseaEvents(allAssets []*assets.EstateAsset, allPrices map[string][]
 			}
 
 			movement := &AssetMovement{
-				AssetRef:  estateAsset.ID,
-				Movement:  event.EventType,
-				TxHash:    getOpsEventTransactionHash(event),
-				Exchange:  event.Exchange,
-				Chain:     event.Chain,
-				MvtDate:   time.UnixMilli(event.EvtTimestamp * 1000),
-				Sender:    event.Sender,
-				Recipient: event.Recipient,
-				Quantity:  event.Quantity,
-				Value:     amount,
-				Currency:  event.Currency,
-				ValueUsd:  0,
+				AssetCollection: event.Collection,
+				AssetContract:   event.Contract,
+				AssetIdentifier: event.AssetId,
+				Movement:        event.EventType,
+				TxHash:          getOpsEventTransactionHash(event),
+				Exchange:        event.Exchange,
+				Chain:           event.Chain,
+				MvtDate:         time.UnixMilli(event.EvtTimestamp * 1000),
+				Sender:          event.Sender,
+				Recipient:       event.Recipient,
+				Quantity:        event.Quantity,
+				Value:           amount,
+				Currency:        event.Currency,
+				ValueUsd:        0,
+			}
+			if estateAsset != nil {
+				movement.AssetRef = estateAsset.ID
 			}
 			movement.CreatedAt = time.Now()
 			movement.UpdatedAt = time.Now()
@@ -515,6 +522,7 @@ func parseEstateMovement(collection collections.Collection, allAssets []*assets.
 		return err
 	}
 
+	//println(allMetadata, movements)
 	/*wg.Add(1)
 	go func() {
 		_ = saveInDatabase(allMetadata, movements, dbInstance)

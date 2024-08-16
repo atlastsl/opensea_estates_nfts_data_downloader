@@ -59,7 +59,15 @@ func (x AssetsMovementsMainDataGetter) FetchData(worker *multithread.Worker) {
 
 	worker.LoggingExtra("Fetching transactions hashes from database...")
 	if x.Collection == collections.CollectionDcl {
-		data, err = getAllEventsTransactionsHashes(x.Collection, databaseInstance)
+		hashes, transactions, e0 := getAllEventsTransactionsHashes(x.Collection, databaseInstance)
+		if e0 != nil {
+			err = e0
+		} else {
+			data = map[string]interface{}{
+				"tasks": hashes,
+				"data":  transactions,
+			}
+		}
 	}
 	worker.LoggingExtra("Fetching transactions hashes from database OK. Publishing data...")
 

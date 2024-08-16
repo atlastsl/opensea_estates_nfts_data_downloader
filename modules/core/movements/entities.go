@@ -9,6 +9,9 @@ import (
 type AssetMovement struct {
 	mgm.DefaultModel `bson:",inline"`
 	AssetRef         primitive.ObjectID `bson:"asset_ref,omitempty"`
+	AssetCollection  string             `bson:"asset_collection,omitempty"`
+	AssetContract    string             `bson:"asset_contract,omitempty"`
+	AssetIdentifier  string             `bson:"asset_identifier,omitempty"`
 	Movement         string             `bson:"movement,omitempty"`
 	TxHash           string             `bson:"tx_hash,omitempty"`
 	Exchange         string             `bson:"exchange,omitempty"`

@@ -2,6 +2,7 @@ package multithread
 
 import (
 	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/helpers"
 	"decentraland_data_downloader/modules/logger"
 	"fmt"
 	"os"
@@ -82,11 +83,24 @@ var MainDataNotifier WorkerNotifier = func(notification *WorkerNotification, wor
 			mainDataIndex++
 			if notification.Status == WorkerParserStatusSuccess && notification.Data != nil {
 				if reflect.TypeOf(notification.Data).Kind() == reflect.Map {
-					for key, _data := range notification.Data.(map[string]any) {
-						if _, ok := mainData[key]; !ok {
+					notifData := notification.Data.(map[string]interface{})
+					notifDataTasksRaw, ok := notifData["tasks"]
+					if ok {
+						notifDataTasks := notifDataTasksRaw.([]string)
+						notifDataMap := helpers.AnytiseData(notifData["data"]).(map[string]interface{})
+						for _, key := range notifDataTasks {
 							if (tasksSucceeded == nil || !slices.Contains(tasksSucceeded, key)) && (tasksFailed == nil || !slices.Contains(tasksFailed, key)) {
 								tasks = append(tasks, key)
-								mainData[key] = _data
+								mainData[key] = notifDataMap[key]
+							}
+						}
+					} else {
+						for key, _data := range notification.Data.(map[string]any) {
+							if _, ok := mainData[key]; !ok {
+								if (tasksSucceeded == nil || !slices.Contains(tasksSucceeded, key)) && (tasksFailed == nil || !slices.Contains(tasksFailed, key)) {
+									tasks = append(tasks, key)
+									mainData[key] = _data
+								}
 							}
 						}
 					}
