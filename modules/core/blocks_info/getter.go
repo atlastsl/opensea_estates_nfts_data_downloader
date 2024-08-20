@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-const PartitionsNbItem = 7
+const PartitionsNbItem = 1000
 
 func getBlockNumbers(collection collections.Collection, dbInstance *mongo.Database) (map[string][]uint64, error) {
 	distinctBlocks, err := getDistinctBlockNumbersFromDatabase(collection, dbInstance)

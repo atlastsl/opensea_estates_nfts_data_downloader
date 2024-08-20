@@ -27,16 +27,13 @@ func getDistinctBlockNumbersFromDatabase(collection collections.Collection, dbIn
 	sortStage := bson.D{
 		{"$sort", bson.D{{"_id", 1}}},
 	}
-	limitStage := bson.D{
-		{"$limit", 10},
-	}
 	asArrayStage := bson.D{
 		{"$group", bson.D{
 			{"_id", nil},
 			{"blockNumbers", bson.D{{"$push", "$_id"}}},
 		}},
 	}
-	cursor, err := dbCollection.Aggregate(context.Background(), mongo.Pipeline{matchStage, groupStage, sortStage, limitStage, asArrayStage})
+	cursor, err := dbCollection.Aggregate(context.Background(), mongo.Pipeline{matchStage, groupStage, sortStage, asArrayStage})
 	if err != nil {
 		return nil, err
 	}
