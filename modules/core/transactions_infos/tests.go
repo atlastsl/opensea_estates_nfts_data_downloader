@@ -4,7 +4,6 @@ import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -15,7 +14,7 @@ func TestTransactionInfo() {
 	}
 	defer database.CloseDatabaseConnection(dbInstance)
 
-	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
+	/*dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	cursor, err := dbCollection.Find(context.Background(), bson.M{"block_number": 12000058, "collection": "decentraland"})
 	if err != nil {
 		panic(err)
@@ -23,6 +22,10 @@ func TestTransactionInfo() {
 	defer cursor.Close(context.Background())
 	txHashes := make([]*transactions_hashes.TransactionHash, 0)
 	err = cursor.All(context.Background(), &txHashes)
+	if err != nil {
+		panic(err)
+	}*/
+	txHashes, err := getTransactionHashesFromDatabase(collections.CollectionDcl, dbInstance)
 	if err != nil {
 		panic(err)
 	}

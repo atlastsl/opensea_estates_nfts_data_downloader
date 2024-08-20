@@ -5,6 +5,7 @@ import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
+	"decentraland_data_downloader/modules/helpers"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -21,9 +22,18 @@ func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.D
 }
 
 func getTransactionHashesFromDatabase(collection collections.Collection, dbInstance *mongo.Database) ([]*transactions_hashes.TransactionHash, error) {
+	tInfoCollection := database.CollectionInstance(dbInstance, &TransactionInfo{})
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
+	existingHashes, err := tInfoCollection.Distinct(context.Background(), "transaction_hash", bson.M{"collection": string(collection)})
+	if err != nil {
+		return nil, err
+	}
+	existingHashesStr := make([]string, len(existingHashes))
+	for i, hash := range existingHashes {
+		existingHashesStr[i] = hash.(string)
+	}
 	opts := &options.FindOptions{Sort: bson.M{"block_timestamp": 1}}
-	cursor, err := dbCollection.Find(context.Background(), bson.M{"collection": string(collection)}, opts.SetLimit(40000))
+	cursor, err := dbCollection.Find(context.Background(), bson.M{"collection": string(collection), "transaction_hash": bson.M{"$nin": helpers.BSONStringA(existingHashesStr)}}, opts.SetLimit(40000))
 	if err != nil {
 		return nil, err
 	}
