@@ -53,7 +53,18 @@ func fetchBlocksTimestamps(blockNumbers []uint64) ([]*helpers.EthBlockInfo, erro
 	return blockInfos, nil
 }
 
-func saveBlockTimestamps(blockNumbers []uint64, collection collections.Collection, wg *sync.WaitGroup) error {
+func saveBlockTimestamps(blockInfos []*helpers.EthBlockInfo, collection collections.Collection) error {
+	dbInstance, err := database.NewDatabaseConnection()
+	if err != nil {
+		return err
+	}
+	defer database.CloseDatabaseConnection(dbInstance)
+
+	err = saveBlockTimestampInDatabase(blockInfos, collection, dbInstance)
+	return err
+}
+
+func parseBlockTimestamps(blockNumbers []uint64, collection collections.Collection, wg *sync.WaitGroup) error {
 	blockInfos, err := fetchBlocksTimestamps(blockNumbers)
 	if err != nil {
 		return err
@@ -68,7 +79,7 @@ func saveBlockTimestamps(blockNumbers []uint64, collection collections.Collectio
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_ = saveBlockTimestampInDatabase(blockInfos, collection, dbInstance)
+		_ = saveBlockTimestamps(blockInfos, collection)
 	}()
 
 	return nil

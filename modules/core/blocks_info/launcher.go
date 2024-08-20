@@ -74,7 +74,7 @@ func (x BlocksInfoDataParser) ParseData(worker *multithread.Worker, wg *sync.Wai
 						mainData := niMap["mainData"]
 						blockNumbers := mainData.([]uint64)
 
-						err := saveBlockTimestamps(blockNumbers, x.Collection, wg)
+						err := parseBlockTimestamps(blockNumbers, x.Collection, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 
