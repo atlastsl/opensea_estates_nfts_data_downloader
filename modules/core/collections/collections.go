@@ -30,7 +30,7 @@ var DecentralandCollectionInfo = &CollectionInfo{
 	},
 	LogTopics: []CollectionInfoLogTopic{
 		{
-			Name:      "TransferToken",
+			Name:      "TransferAsset",
 			Hash:      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
 			Contracts: []string{"0xf87e31492faf9a91b02ee0deaad50d51d56d5d4d", "0x959e104e1a4db6317fa58f8295f586e1a978c297"},
 			EndBlock:  0,
