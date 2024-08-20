@@ -1,4 +1,4 @@
-package eth_events
+package transactions_hashes
 
 import (
 	"decentraland_data_downloader/modules/core/collections"
@@ -10,18 +10,15 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 )
 
-const (
-	EthereumChain = "ethereum"
-)
-
-func getLatestFetchedBlockNumbers(collection collections.Collection, dbInstance *mongo.Database) (map[string]uint64, error) {
+func getTopicBoundariesForLogs(collection collections.Collection, dbInstance *mongo.Database) (map[string]*collections.CollectionInfoLogTopic, error) {
 	if collection == collections.CollectionDcl {
-		return getLatestFetchedBlockNumber(collection, EthereumChain, dbInstance)
+		return getTopicBoundariesForLogsFromDatabase(collection, dbInstance)
 	}
-	return map[string]uint64{}, nil
+	return make(map[string]*collections.CollectionInfoLogTopic), nil
 }
 
 func getLogsBuildParams(addresses []string, topic string, bnInterval []uint64) ([]byte, error) {
@@ -29,7 +26,7 @@ func getLogsBuildParams(addresses []string, topic string, bnInterval []uint64) (
 	reqParams["address"] = addresses
 	reqParams["topics"] = []string{topic}
 	reqParams["fromBlock"] = hexutil.EncodeUint64(bnInterval[0])
-	if len(bnInterval) > 1 {
+	if bnInterval[1] > 0 {
 		reqParams["toBlock"] = hexutil.EncodeUint64(bnInterval[1])
 	} else {
 		reqParams["toBlock"] = "latest"
@@ -43,35 +40,35 @@ func getLogsBuildParams(addresses []string, topic string, bnInterval []uint64) (
 	return json.MarshalIndent(payload, "", "  ")
 }
 
-func getEthEventsLogsReq(collection collections.Collection, topic string, bnInterval []uint64) (*EthResponse, error) {
-	addresses := getAddresses(collection)
-	if len(addresses) == 0 {
-		return nil, errors.New("no addresses found")
+func getEthEventsLogsReq(logTopicInfo *collections.CollectionInfoLogTopic, bnInterval []uint64) (*helpers.EthResponse, error) {
+	if logTopicInfo == nil || len(logTopicInfo.Contracts) == 0 {
+		return nil, errors.New("no token contracts found")
 	}
 
 	url := fmt.Sprintf("https://mainnet.infura.io/v3/%s", os.Getenv("INFURA_API_KEY"))
 
-	payload, err := getLogsBuildParams(addresses, topic, bnInterval)
+	payload, err := getLogsBuildParams(logTopicInfo.Contracts, logTopicInfo.Hash, bnInterval)
 	if err != nil {
 		return nil, err
 	}
-	response := &EthResponse{}
+	response := &helpers.EthResponse{}
 	err = helpers.PostData(url, "", payload, response)
 
 	return response, err
 }
 
-func handleEthEventsResponse(response *EthResponse) ([]*EthEventRes, []uint64, error) {
+func handleEthEventsResponse(response *helpers.EthResponse) ([]*helpers.EthEventLog, []uint64, error) {
 	if response.Error != nil {
 		message := "an error occurred on fetching data from Infura API !"
 		if reflect.TypeOf(response.Error).Kind() == reflect.Map {
 			code := response.Error.(map[string]interface{})["code"].(float64)
-			if code == -32005 {
+			message = response.Error.(map[string]interface{})["message"].(string)
+			if code == -32005 && strings.Contains(message, "query returned more than 10000 results") {
 				errorStr, err := json.Marshal(response.Error)
 				if err != nil {
 					return nil, nil, err
 				}
-				errorPayload := &EthBlockRangeError{}
+				errorPayload := &helpers.EthBlockRangeError{}
 				err = json.Unmarshal(errorStr, errorPayload)
 				if err != nil {
 					return nil, nil, err
@@ -87,18 +84,16 @@ func handleEthEventsResponse(response *EthResponse) ([]*EthEventRes, []uint64, e
 					return nil, nil, err
 				}
 				return nil, []uint64{bnFrom, bnTo}, nil
-			} else {
-				message = response.Error.(map[string]interface{})["message"].(string)
 			}
 		}
 		return nil, nil, errors.New(message)
 	} else {
-		var events []*EthEventRes
+		var events []*helpers.EthEventLog
 		resJson, err := json.Marshal(response.Result)
 		if err != nil {
 			return nil, nil, err
 		}
-		err = json.Unmarshal(resJson, events)
+		err = json.Unmarshal(resJson, &events)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -106,9 +101,9 @@ func handleEthEventsResponse(response *EthResponse) ([]*EthEventRes, []uint64, e
 	}
 }
 
-func getEthEventsLogsOfTopic(collection collections.Collection, topic string, latestFetchedBlockNumber uint64) ([]*EthEventRes, uint64, error) {
+func getEthEventsLogsOfTopic(logTopicInfo *collections.CollectionInfoLogTopic, latestFetchedBlockNumber uint64) ([]*helpers.EthEventLog, uint64, error) {
 
-	response, err := getEthEventsLogsReq(collection, topic, []uint64{latestFetchedBlockNumber + 1})
+	response, err := getEthEventsLogsReq(logTopicInfo, []uint64{latestFetchedBlockNumber + 1, 0})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -116,7 +111,7 @@ func getEthEventsLogsOfTopic(collection collections.Collection, topic string, la
 	if err != nil {
 		return nil, 0, err
 	} else if bnInterval != nil {
-		response, err = getEthEventsLogsReq(collection, topic, bnInterval)
+		response, err = getEthEventsLogsReq(logTopicInfo, bnInterval)
 		if err != nil {
 			return nil, 0, err
 		}

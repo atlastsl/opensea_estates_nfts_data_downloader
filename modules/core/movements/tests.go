@@ -28,8 +28,8 @@ func DatabaseTest() {
 		[]string{"-28,-47"},
 		dbInstance)*/
 	transactionHash := &TxHash{
-		hash:      "0x49037d35bd32fa70dbe7118808e6296e44a30a6c1eae951ae8ee8ed02c8a260c",
-		timestamp: 1629912641,
+		hash:      "0x8dfdefb77248fc203e3125a23277d152fe6971590d557d6f47b1adbcd671325b",
+		timestamp: 1594265262,
 	}
 	allPrices, err := getCurrencyPrices(collections.CollectionDcl, dbInstance)
 	if err != nil {

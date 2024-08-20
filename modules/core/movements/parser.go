@@ -522,13 +522,13 @@ func parseEstateMovement(collection collections.Collection, allAssets []*assets.
 		return err
 	}
 
-	//println(allMetadata, movements)
+	println(allMetadata, movements)
 	/*wg.Add(1)
 	go func() {
 		_ = saveInDatabase(allMetadata, movements, dbInstance)
 		wg.Done()
 	}()*/
-	err = saveInDatabase(allMetadata, movements, dbInstance)
+	//err = saveInDatabase(allMetadata, movements, dbInstance)
 
 	return err
 }

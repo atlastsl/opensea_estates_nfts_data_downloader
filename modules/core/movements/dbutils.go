@@ -26,7 +26,7 @@ type TxHash struct {
 func getAllEventsTransactionsHashes(collection collections.Collection, dbInstance *mongo.Database) ([]string, map[string]*TxHash, error) {
 	assetEvtDbCol := database.CollectionInstance(dbInstance, &ops_events.EstateEvent{})
 	matchStage := bson.D{
-		{"$match", bson.D{{"collection", string(collection)}}},
+		{"$match", bson.D{{"collection", string(collection)}, {"evt_timestamp", bson.D{{"$gte", 1594265262}}}}},
 	}
 	hashStage := bson.D{
 		{"$addFields", bson.D{{"transaction_hash", bson.D{{"$ifNull", bson.A{"$transaction", "$fixed_transaction"}}}}}},

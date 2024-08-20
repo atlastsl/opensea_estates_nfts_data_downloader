@@ -12,6 +12,9 @@ import (
 func getLatestFetchedBlockNumber(collection collections.Collection, chain string, dbInstance *mongo.Database) (map[string]uint64, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &BlockNumber{})
 	cursor, err := dbCollection.Find(context.Background(), bson.M{"collection": string(collection), "chain": chain})
+	if err != nil {
+		return nil, err
+	}
 	defer cursor.Close(context.Background())
 	blockNumbers := make([]BlockNumber, 0)
 	err = cursor.All(context.Background(), &blockNumbers)

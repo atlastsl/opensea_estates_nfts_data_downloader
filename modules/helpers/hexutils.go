@@ -5,11 +5,19 @@ import (
 	"strings"
 )
 
+func HexRemoveLeadingZerosTrimLeft(s string) string {
+	tmp := strings.TrimLeft(s, "0")
+	if tmp == "" {
+		tmp = "0"
+	}
+	return tmp
+}
+
 func HexRemoveLeadingZeros(s string) string {
 	if strings.HasPrefix(s, "0x") {
-		return "0x" + strings.TrimLeft(s[2:], "0")
+		return "0x" + HexRemoveLeadingZerosTrimLeft(s[2:])
 	}
-	return strings.TrimLeft(s, "0")
+	return HexRemoveLeadingZerosTrimLeft(s)
 }
 
 func HexConvertToInt(s string) (int, error) {
@@ -28,4 +36,14 @@ func HexConvertToString(s string) (string, error) {
 		return "", err
 	}
 	return bs.String(), nil
+}
+
+func HexConvertToFloat64(s string) (float64, error) {
+	cleanHex := HexRemoveLeadingZeros(s)
+	bs, err := hexutil.DecodeBig(cleanHex)
+	if err != nil {
+		return 0.0, err
+	}
+	bf, _ := bs.Float64()
+	return bf, nil
 }
