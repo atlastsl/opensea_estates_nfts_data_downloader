@@ -149,6 +149,19 @@ func parseTransactionInfo(transactionHash *transactions_hashes.TransactionHash, 
 	return txInfo, txLogs
 }
 
+func convertTxHashToTxInfo(txHash *transactions_hashes.TransactionHash, cltInfo *collections.CollectionInfo) (*TransactionInfo, []*TransactionLog, error) {
+	txDetails, err := getTransactionByHash(txHash.TransactionHash)
+	if err != nil {
+		return nil, nil, err
+	}
+	txReceipt, err := getTransactionReceipt(txHash.TransactionHash)
+	if err != nil {
+		return nil, nil, err
+	}
+	txInfo, tTxLogs := parseTransactionInfo(txHash, txDetails, txReceipt, cltInfo)
+	return txInfo, tTxLogs, err
+}
+
 func saveTransactionInfo(txInfos []*TransactionInfo, txLogs []*TransactionLog) error {
 	dbInstance, err := database.NewDatabaseConnection()
 	if err != nil {
@@ -167,26 +180,35 @@ func saveTransactionInfo(txInfos []*TransactionInfo, txLogs []*TransactionLog) e
 func parseTransactionsInfo(transactionsHashes []*transactions_hashes.TransactionHash, cltInfo *collections.CollectionInfo, wg *sync.WaitGroup) error {
 	txInfos := make([]*TransactionInfo, 0)
 	txLogs := make([]*TransactionLog, 0)
+	allErrors := make([]error, 0)
 
+	parserWg := &sync.WaitGroup{}
+	dataLocker := &sync.RWMutex{}
 	for _, txHash := range transactionsHashes {
-		txDetails, err := getTransactionByHash(txHash.TransactionHash)
-		if err != nil {
-			return err
-		}
-		txReceipt, err := getTransactionReceipt(txHash.TransactionHash)
-		if err != nil {
-			return err
-		}
-		txInfo, tTxLogs := parseTransactionInfo(txHash, txDetails, txReceipt, cltInfo)
-		txInfos = append(txInfos, txInfo)
-		txLogs = append(txLogs, tTxLogs...)
+		parserWg.Add(1)
+		go func() {
+			defer parserWg.Done()
+			dataLocker.Lock()
+			txInfo, tTxLogs, err := convertTxHashToTxInfo(txHash, cltInfo)
+			if err != nil {
+				allErrors = append(allErrors, err)
+			} else {
+				txInfos = append(txInfos, txInfo)
+				txLogs = append(txLogs, tTxLogs...)
+			}
+			dataLocker.Unlock()
+		}()
 	}
 
-	/*wg.Add(1)
+	if len(allErrors) > 0 {
+		return allErrors[0]
+	}
+
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		_ = saveTransactionInfo(txInfos, txLogs)
-	}()*/
+	}()
 
 	return nil
 }

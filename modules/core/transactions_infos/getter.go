@@ -8,7 +8,7 @@ import (
 	"math"
 )
 
-const PartitionsNbItem = 1000
+const PartitionsNbItem = 100
 
 func getTransactionsHashesSlices(collection collections.Collection, dbInstance *mongo.Database) (map[string][]*transactions_hashes.TransactionHash, error) {
 	transactionsHashes, err := getTransactionHashesFromDatabase(collection, dbInstance)
