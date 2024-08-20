@@ -13,7 +13,7 @@ import (
 func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.Database) (*collections.CollectionInfo, error) {
 	cltInfo := &collections.CollectionInfo{}
 	dbCollection := database.CollectionInstance(dbInstance, cltInfo)
-	err := dbCollection.FirstWithCtx(context.Background(), bson.M{"collection": string(collection)}, cltInfo)
+	err := dbCollection.FirstWithCtx(context.Background(), bson.M{"name": string(collection)}, cltInfo)
 	if err != nil {
 		return nil, err
 	}
