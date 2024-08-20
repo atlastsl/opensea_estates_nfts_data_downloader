@@ -199,6 +199,7 @@ func parseTransactionsInfo(transactionsHashes []*transactions_hashes.Transaction
 			dataLocker.Unlock()
 		}()
 	}
+	parserWg.Wait()
 
 	if len(allErrors) > 0 {
 		return allErrors[0]
