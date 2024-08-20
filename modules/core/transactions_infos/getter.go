@@ -8,7 +8,7 @@ import (
 	"math"
 )
 
-const PartitionsNbItem = 100
+const PartitionsNbItem = 1000
 
 func getTransactionsHashesSlices(collection collections.Collection, dbInstance *mongo.Database) (map[string][]*transactions_hashes.TransactionHash, error) {
 	transactionsHashes, err := getTransactionHashesFromDatabase(collection, dbInstance)
@@ -23,8 +23,8 @@ func getTransactionsHashesSlices(collection collections.Collection, dbInstance *
 		if end > len(transactionsHashes) {
 			end = len(transactionsHashes)
 		}
-		txHash1, txHash2 := transactionsHashes[start], transactionsHashes[end-1]
-		key := fmt.Sprintf("%d_%d", txHash1.BlockTimestamp.UnixMilli(), txHash2.BlockTimestamp.UnixMilli())
+		txHash1 := transactionsHashes[start]
+		key := fmt.Sprintf("%s_%d", txHash1.TransactionHash, txHash1.BlockTimestamp.UnixMilli())
 		txHashesSlices[key] = transactionsHashes[start:end]
 	}
 	return txHashesSlices, nil
