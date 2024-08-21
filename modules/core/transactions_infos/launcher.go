@@ -31,9 +31,9 @@ func (x TxInfoAddDataGetter) FetchData(worker *multithread.Worker) {
 	defer database.CloseDatabaseConnection(databaseInstance)
 	worker.LoggingExtra("Connection to database OK!")
 
-	worker.LoggingExtra("Fetching transaction hashes from database...")
+	worker.LoggingExtra("Fetching Collection Info from database...")
 	data, err = getNftCollectionInfo(x.Collection, databaseInstance)
-	worker.LoggingExtra("Fetching transaction hashes from database OK. Publishing data...")
+	worker.LoggingExtra("Fetching Collection Info from database OK. Publishing data...")
 
 	multithread.PublishDataNotification(worker, "-", data, err)
 	multithread.PublishDoneNotification(worker)

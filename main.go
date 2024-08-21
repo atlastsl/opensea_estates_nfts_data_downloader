@@ -11,6 +11,7 @@ import (
 	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
+	"decentraland_data_downloader/modules/core/transactions_logs"
 	"flag"
 	"github.com/joho/godotenv"
 	"log"
@@ -46,6 +47,7 @@ func readFlags() (*string, *string, *int, bool) {
 	// go run main.go -x decentraland -t tx_hashes -n 1
 	// go run main.go -x decentraland -t blocks_info -n 1
 	// go run main.go -x decentraland -t tx_info -n 1
+	// go run main.go -x decentraland -t tx_logs -n 1
 
 	if *collection == "" {
 		showUsageAndExit(0)
@@ -92,5 +94,7 @@ func main() {
 		blocks_info.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == transactions_infos.TxInfoArguments {
 		transactions_infos.Launch(strings.ToLower(*collection), *nbParsers)
+	} else if *dataType == transactions_logs.TxLogsArguments {
+		transactions_logs.Launch(strings.ToLower(*collection), *nbParsers)
 	}
 }

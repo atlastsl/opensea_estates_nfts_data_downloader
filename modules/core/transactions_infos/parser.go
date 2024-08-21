@@ -56,7 +56,7 @@ func dclParseEventTopic(address string, topics []string, data string, cltInfo *c
 			} else if logTopic.Name == "AddLandInEstate" {
 				eventParams.Estate, _ = helpers.HexConvertToString(topics[1])
 				eventParams.Land, _ = helpers.HexConvertToString(topics[2])
-			} else if logTopic.Name == "AddLandOutEstate" {
+			} else if logTopic.Name == "RemoveLandFromEstate" {
 				eventParams.Estate, _ = helpers.HexConvertToString(topics[1])
 				eventParams.Land, _ = helpers.HexConvertToString(topics[2])
 				eventParams.To = helpers.HexRemoveLeadingZeros(topics[3])

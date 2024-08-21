@@ -11,7 +11,7 @@ type TransactionLogInfo struct {
 	To        string `bson:"to,omitempty"`
 	Amount    string `bson:"amount,omitempty"`
 	Asset     string `bson:"asset,omitempty"`
-	Land      string `bson:"lan,omitempty"`
+	Land      string `bson:"land,omitempty"`
 	Estate    string `bson:"estate,omitempty"`
 }
 
