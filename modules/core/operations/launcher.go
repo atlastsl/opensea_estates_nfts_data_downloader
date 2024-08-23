@@ -77,7 +77,7 @@ func (x OperationMainDataGetter) FetchData(worker *multithread.Worker) {
 		var err0 error = nil
 
 		task := strconv.FormatInt(int64(blockNumber), 10)
-		transactions, err2 := getTransactionInfoByBlockNumber(string(x.Collection), blockNumber, databaseInstance)
+		transactions, err2 := getTransactionInfoByBlockNumber(blockNumber, databaseInstance)
 		if err2 != nil {
 			err0 = err2
 		} else {

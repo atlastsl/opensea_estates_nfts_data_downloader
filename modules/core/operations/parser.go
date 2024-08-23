@@ -3,19 +3,19 @@ package operations
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/movements"
 	"decentraland_data_downloader/modules/core/tiles_distances"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log"
 	"sync"
 	"time"
 )
 
-func convertAssetsUpdatesListAsMetadata(cltInfo *collections.CollectionInfo, allAssets []*Asset, updates []*assetUpdate, blockTimestamp time.Time) ([]*AssetMetadata, error) {
+func convertAssetsUpdatesListAsMetadata(updates []*assetUpdate, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, allAssets []*Asset, allDistances []*tiles_distances.MapTileMacroDistance) ([]*AssetMetadata, error) {
 	dbInstance, err := database.NewDatabaseConnection()
-	defer database.CloseDatabaseConnection(dbInstance)
 	if err != nil {
 		return nil, err
 	}
+	defer database.CloseDatabaseConnection(dbInstance)
 
 	var wLocker sync.RWMutex
 	allMetadata := make([]*AssetMetadata, 0)
@@ -28,7 +28,7 @@ func convertAssetsUpdatesListAsMetadata(cltInfo *collections.CollectionInfo, all
 			metadataListI := make([]*AssetMetadata, 0)
 			var err error
 			if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
-				metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, blockTimestamp, cltInfo, dbInstance)
+				metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, blockTimestamp, cltInfo, allDistances, dbInstance)
 			} else {
 				err = invalidCollectionError
 			}
@@ -48,6 +48,21 @@ func convertAssetsUpdatesListAsMetadata(cltInfo *collections.CollectionInfo, all
 		return nil, allErrors[0]
 	}
 
+	/*allMetadata := make([]*AssetMetadata, 0)
+	for _, updateItem := range updates {
+		metadataListI := make([]*AssetMetadata, 0)
+		if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
+			metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, blockTimestamp, cltInfo, allDistances, dbInstance)
+		} else {
+			err = invalidCollectionError
+		}
+		if err != nil {
+			return nil, err
+		} else if len(metadataListI) > 0 {
+			allMetadata = append(allMetadata, metadataListI...)
+		}
+	}*/
+
 	return allMetadata, nil
 }
 
@@ -64,7 +79,7 @@ func parseTransaction(txFull *TransactionFull, params map[string]any) ([]*Operat
 	cltInfo := params["cltInfo"].(*collections.CollectionInfo)
 	currencies := params["currencies"].(map[string]*collections.Currency)
 	allDistances := params["allDistances"].([]*tiles_distances.MapTileMacroDistance)
-	allPrices := params["allPrices"].(map[string][]*movements.CurrencyPrice)
+	allPrices := params["allPrices"].(map[string][]*collections.CurrencyPrice)
 
 	txLogsInfos := extractLogInfos(txFull.Logs, cltInfo, currencies)
 	assetsUpdatesList, err := convertTxLogsToAssetUpdates(txLogsInfos, cltInfo)
@@ -77,7 +92,7 @@ func parseTransaction(txFull *TransactionFull, params map[string]any) ([]*Operat
 		return nil, nil, err
 	}
 
-	assetsMetadataList, err := convertAssetsUpdatesListAsMetadata(cltInfo, allAssets, assetsUpdatesList, txFull.Transaction.BlockTimestamp)
+	assetsMetadataList, err := convertAssetsUpdatesListAsMetadata(assetsUpdatesList, txFull.Transaction.BlockTimestamp, cltInfo, allAssets, allDistances)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -97,13 +112,14 @@ func saveOperationsAndMetadata(operations []*Operation, metadataList []*AssetMet
 	}
 	err = saveOperationsInDatabase(operations, dbInstance)
 	if err != nil {
+		log.Print(err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func parseTransactions(transactions []*TransactionFull, params map[string]any, dbInstance *mongo.Database, wg *sync.WaitGroup) error {
+func parseTransactions(transactions []*TransactionFull, params map[string]any, dbInstance *mongo.Database, _ *sync.WaitGroup) error {
 	metadataList := make([]*AssetMetadata, 0)
 	operations := make([]*Operation, 0)
 	allErrors := make([]error, 0)
@@ -131,11 +147,26 @@ func parseTransactions(transactions []*TransactionFull, params map[string]any, d
 		return allErrors[0]
 	}
 
-	wg.Add(1)
+	err := saveOperationsAndMetadata(operations, metadataList, dbInstance)
+	return err
+
+	/*wg.Add(1)
 	go func() {
 		_ = saveOperationsAndMetadata(operations, metadataList, dbInstance)
 		wg.Done()
-	}()
+	}()*/
 
-	return nil
+	/*metadataList := make([]*AssetMetadata, 0)
+	operations := make([]*Operation, 0)
+
+	for _, transaction := range transactions {
+		tOperations, tMetadataList, err := parseTransaction(transaction, params)
+		if err != nil {
+			return err
+		}
+		operations = append(operations, tOperations...)
+		metadataList = append(metadataList, tMetadataList...)
+	}*/
+
+	//return nil
 }

@@ -43,8 +43,8 @@ type Operation struct {
 	Date             time.Time          `bson:"mvt_date,omitempty"`
 	Sender           string             `bson:"sender,omitempty"`
 	Recipient        string             `bson:"recipient,omitempty"`
-	Amount           []OperationValue   `bson:"amount,omitempty"`
-	Fees             []OperationValue   `bson:"fees,omitempty"`
+	Amount           []OperationValue   `bson:"amount"`
+	Fees             []OperationValue   `bson:"fees"`
 }
 
 const (
@@ -87,7 +87,7 @@ type AssetMetadata struct {
 	Value            string               `bson:"value,omitempty"`
 	MacroRef         primitive.ObjectID   `bson:"macro,omitempty"`
 	MacroType        string               `bson:"macro_type,omitempty"`
-	Date             time.Time            `bson:"update_date,omitempty"`
+	Date             time.Time            `bson:"date,omitempty"`
 	OperationsRef    []primitive.ObjectID `bson:"operations,omitempty"`
 }
 

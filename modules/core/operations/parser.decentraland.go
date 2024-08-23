@@ -17,6 +17,21 @@ import (
 	"time"
 )
 
+func dclGetDistanceByLandsCoords(coords []string, allDistances []*tiles_distances.MapTileMacroDistance) []*tiles_distances.MapTileMacroDistance {
+	filteredDistances := make([]*tiles_distances.MapTileMacroDistance, 0)
+	if allDistances != nil && len(allDistances) > 0 {
+		filteredDistances = helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
+			for _, coordsItem := range coords {
+				if strings.HasSuffix(distance.TileSlug, "|"+coordsItem) {
+					return true
+				}
+			}
+			return false
+		})
+	}
+	return filteredDistances
+}
+
 func dclSafeGetEstateAssetUpdate(updates *[]*assetUpdate, collection, contract, identifier string) *assetUpdate {
 	i := slices.IndexFunc(*updates, func(item *assetUpdate) bool {
 		return item.collection == collection && item.contract == contract && item.identifier == identifier
@@ -33,8 +48,8 @@ func dclSafeGetEstateAssetUpdate(updates *[]*assetUpdate, collection, contract, 
 func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *collections.CollectionInfo) (updates []*assetUpdate) {
 	landInfo := cltInfo.GetAsset("land")
 	estateInfo := cltInfo.GetAsset("estate")
-	addLandTopic := "AddLandInEstate"
-	removeLandTopic := "RemoveLandFromEstate"
+	addLandTopic := os.Getenv("ETH_TRANSFER_LOG_DCL_ADD_LAND")
+	removeLandTopic := os.Getenv("ETH_TRANSFER_LOG_DCL_RMV_LAND")
 
 	transfersLogsInfos := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetTransfers)
 	interAstLogsInfos := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetInter)
@@ -139,9 +154,10 @@ func dclGetEstateMinDistance(allDistances []*tiles_distances.MapTileMacroDistanc
 	return result
 }
 
-func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*Asset, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, dbInstance *mongo.Database) ([]*AssetMetadata, error) {
+func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*Asset, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, allDistances []*tiles_distances.MapTileMacroDistance, dbInstance *mongo.Database) ([]*AssetMetadata, error) {
 
 	estateInfo := cltInfo.GetAsset("estate")
+	landInfo := cltInfo.GetAsset("land")
 
 	// instantiate metadata return list
 	metadataList := make([]*AssetMetadata, 0)
@@ -170,7 +186,7 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 			// we must remove some lands
 			if updates.outLands != nil && len(updates.outLands) > 0 {
 				// Get coordinates of lands to remove from estate
-				coords, err := getCoordinatesOfLandsByIdentifiers(updates.collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), updates.outLands, dbInstance)
+				coords, err := getCoordinatesOfLandsByIdentifiers(updates.collection, landInfo.Contract, updates.outLands, dbInstance)
 				if err != nil {
 					return nil, err
 				}
@@ -182,7 +198,7 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 			// new must add some lands
 			if updates.inLands != nil && len(updates.inLands) > 0 {
 				// Get coordinates of lands to add to estate
-				coords, err := getCoordinatesOfLandsByIdentifiers(updates.collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), updates.inLands, dbInstance)
+				coords, err := getCoordinatesOfLandsByIdentifiers(updates.collection, landInfo.Contract, updates.inLands, dbInstance)
 				if err != nil {
 					return nil, err
 				}
@@ -227,15 +243,12 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 
 			// 2. Update Metadata Distances
 			// Get all distances for new lands
-			allDistances, err := getDistancesByEstateAssetLands(updates.collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), newLands, dbInstance)
-			if err != nil {
-				return nil, err
-			}
+			filteredDistances := dclGetDistanceByLandsCoords(newLands, allDistances)
 			// focused distance macro types
 			macroTypes := []string{"district", "plaza", "road"}
 			// Get minimal distance for all macro types
 			for _, macroType := range macroTypes {
-				distance := dclGetEstateMinDistance(allDistances, macroType)
+				distance := dclGetEstateMinDistance(filteredDistances, macroType)
 				if distance != nil {
 					newDistanceMtd := &AssetMetadata{
 						Collection:    asset.Collection,

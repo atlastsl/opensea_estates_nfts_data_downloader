@@ -2,7 +2,6 @@ package operations
 
 import (
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/movements"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"decentraland_data_downloader/modules/helpers"
 	"math/big"
@@ -10,7 +9,9 @@ import (
 	"time"
 )
 
-func getCurrencyPrice(currency string, date time.Time, allPrices map[string][]*movements.CurrencyPrice) (price float64) {
+const minAmtValue = 1e-6
+
+func getCurrencyPrice(currency string, date time.Time, allPrices map[string][]*collections.CurrencyPrice) (price float64) {
 	price = 0.0
 	filteredPrices, hasCp := allPrices[currency]
 	if hasCp && filteredPrices != nil && len(filteredPrices) > 0 {
@@ -19,7 +20,7 @@ func getCurrencyPrice(currency string, date time.Time, allPrices map[string][]*m
 		} else if date.UnixMilli() >= filteredPrices[len(filteredPrices)-1].End.UnixMilli() {
 			price = filteredPrices[len(filteredPrices)-1].Close
 		} else {
-			bestPriceInstance := new(movements.CurrencyPrice)
+			bestPriceInstance := new(collections.CurrencyPrice)
 			for _, priceItem := range filteredPrices {
 				if priceItem.Start.UnixMilli() <= date.UnixMilli() && date.UnixMilli() < priceItem.End.UnixMilli() {
 					bestPriceInstance = priceItem
@@ -42,7 +43,7 @@ func getCurrencyPrice(currency string, date time.Time, allPrices map[string][]*m
 	return price
 }
 
-func getTransferMoneyOperationValues(transferMoneyLogsInfo []*TransactionLogInfo, assetsReceivers []string, date time.Time, nbAssetsTransacted int, currencies map[string]*collections.Currency, allPrices map[string][]*movements.CurrencyPrice) []OperationValue {
+func getTransferMoneyOperationValues(transferMoneyLogsInfo []*TransactionLogInfo, assetsReceivers []string, date time.Time, nbAssetsTransacted int, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) []OperationValue {
 	currenciesAddresses := make([]string, 0)
 	for _, logInfo := range transferMoneyLogsInfo {
 		if !slices.Contains(currenciesAddresses, logInfo.TransactionLog.Address) {
@@ -68,37 +69,41 @@ func getTransferMoneyOperationValues(transferMoneyLogsInfo []*TransactionLogInfo
 						bgCcyOpValue.Sub(bgCcyOpValue, bgAmt)
 					}
 				}
-				if bgCcyOpValue.Cmp(big.NewFloat(0.0)) == -1 {
+				if bgCcyOpValue.Cmp(big.NewFloat(0.0)) < 0 {
 					bgCcyOpValue.SetFloat64(0.0)
 				}
 			}
-			if bgCcyOpValue.Cmp(big.NewFloat(0)) == 1 {
-				decimals := big.NewInt(currency.Decimals)
+			if bgCcyOpValue.Cmp(big.NewFloat(0.0)) > 0 {
+				decimals := new(big.Int)
+				decimals.Exp(big.NewInt(10), big.NewInt(currency.Decimals), nil)
 				bgCcyOpValue.Quo(bgCcyOpValue, new(big.Float).SetInt(decimals))
-				if nbAssetsTransacted > 1 {
-					bgCcyOpValue.Quo(bgCcyOpValue, new(big.Float).SetInt64(int64(nbAssetsTransacted)))
+				if bgCcyOpValue.Cmp(big.NewFloat(minAmtValue)) < 0 {
+					if nbAssetsTransacted > 1 {
+						bgCcyOpValue.Quo(bgCcyOpValue, new(big.Float).SetInt64(int64(nbAssetsTransacted)))
+					}
+					bgCcyOpValueUsd := new(big.Float).SetFloat64(0.0)
+					if price > 0 {
+						bgCcyOpValueUsd.Mul(bgCcyOpValue, new(big.Float).SetFloat64(price))
+					}
+					value, _ := bgCcyOpValue.Float64()
+					valueUsd, _ := bgCcyOpValueUsd.Float64()
+					opValues = append(opValues, OperationValue{Value: value, Currency: currency.Symbols, CurrencyPrice: price, ValueUsd: valueUsd})
 				}
-				bgCcyOpValueUsd := new(big.Float).SetFloat64(0.0)
-				if price > 0 {
-					bgCcyOpValueUsd.Mul(bgCcyOpValue, new(big.Float).SetFloat64(price))
-				}
-				value, _ := bgCcyOpValue.Float64()
-				valueUsd, _ := bgCcyOpValueUsd.Float64()
-				opValues = append(opValues, OperationValue{Value: value, Currency: currency.Symbols, CurrencyPrice: price, ValueUsd: valueUsd})
 			}
 		}
 	}
 	return opValues
 }
 
-func getTransactionValueOperationValue(txInfo *transactions_infos.TransactionInfo, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*movements.CurrencyPrice) *OperationValue {
+func getTransactionValueOperationValue(txInfo *transactions_infos.TransactionInfo, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) *OperationValue {
 	currency, ccyExists := currencies[cltInfo.Currency]
 	if ccyExists {
 		price := getCurrencyPrice(currency.Symbols, txInfo.BlockTimestamp, allPrices)
 		bgCcyOpValue := new(big.Float)
 		bgCcyOpValue, _ = bgCcyOpValue.SetString(txInfo.Value)
 		if bgCcyOpValue.Cmp(big.NewFloat(0)) == 1 {
-			decimals := big.NewInt(currency.Decimals)
+			decimals := new(big.Int)
+			decimals.Exp(big.NewInt(10), big.NewInt(currency.Decimals), nil)
 			bgCcyOpValue.Quo(bgCcyOpValue, new(big.Float).SetInt(decimals))
 			if nbAssetsTransacted > 1 {
 				bgCcyOpValue.Quo(bgCcyOpValue, new(big.Float).SetInt64(int64(nbAssetsTransacted)))
@@ -115,7 +120,7 @@ func getTransactionValueOperationValue(txInfo *transactions_infos.TransactionInf
 	return nil
 }
 
-func getTransactionOperationValues(transaction *TransactionFull, transferMoneyLogsInfo []*TransactionLogInfo, assetsReceivers []string, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*movements.CurrencyPrice) []OperationValue {
+func getTransactionOperationValues(transaction *TransactionFull, transferMoneyLogsInfo []*TransactionLogInfo, assetsReceivers []string, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) []OperationValue {
 	opValues := make([]OperationValue, 0)
 	trMoneyOpValues := getTransferMoneyOperationValues(transferMoneyLogsInfo, assetsReceivers, transaction.Transaction.BlockTimestamp, nbAssetsTransacted, currencies, allPrices)
 	if len(trMoneyOpValues) > 0 {
@@ -128,7 +133,7 @@ func getTransactionOperationValues(transaction *TransactionFull, transferMoneyLo
 	return opValues
 }
 
-func getTransactionFeesOperationValue(txInfo *transactions_infos.TransactionInfo, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*movements.CurrencyPrice) []OperationValue {
+func getTransactionFeesOperationValue(txInfo *transactions_infos.TransactionInfo, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) []OperationValue {
 	opValues := make([]OperationValue, 0)
 	currency, ccyExists := currencies[cltInfo.Currency]
 	if ccyExists {
@@ -138,7 +143,8 @@ func getTransactionFeesOperationValue(txInfo *transactions_infos.TransactionInfo
 		gasPrice, _ = gasPrice.SetString(txInfo.GasPrice)
 		gasValue := new(big.Float).Mul(gasUsed, gasPrice)
 		if gasValue.Cmp(big.NewFloat(0)) == 1 {
-			decimals := big.NewInt(currency.Decimals)
+			decimals := new(big.Int)
+			decimals.Exp(big.NewInt(10), big.NewInt(currency.Decimals), nil)
 			gasValue.Quo(gasValue, new(big.Float).SetInt(decimals))
 			if nbAssetsTransacted > 1 {
 				gasValue.Quo(gasValue, new(big.Float).SetInt64(int64(nbAssetsTransacted)))
@@ -162,7 +168,7 @@ func getOperationTypes(amount []OperationValue, sender string) (string, string) 
 	} else {
 		operationType = OperationTypeFree
 	}
-	if sender == "0x" {
+	if sender == "0x" || sender == "0x0" {
 		transactionType = TransactionTypeMint
 	} else {
 		transactionType = TransactionTypeTransfer
@@ -199,10 +205,10 @@ func convertTransferLogToOperation(transferLogInfo *TransactionLogInfo, transact
 	return operation, nil
 }
 
-func convertTransactionInfoToOperations(transaction *TransactionFull, txLogsInfos []*TransactionLogInfo, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*movements.CurrencyPrice, allAssets []*Asset) ([]*Operation, error) {
-	nbAssetsTransacted := getNumberOfAssetsTransacted(txLogsInfos)
+func convertTransactionInfoToOperations(transaction *TransactionFull, txLogsInfos []*TransactionLogInfo, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice, allAssets []*Asset) ([]*Operation, error) {
 	colAssetsTransfersLogs := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetTransfers)
 	assetsReceivers := getTransactionLogInfoReceivers(colAssetsTransfersLogs)
+	nbAssetsTransacted := getNumberOfAssetsTransacted(txLogsInfos, assetsReceivers)
 
 	transferMoneyLogs := getTransferMoneyLogsOnAssetsReceivers(txLogsInfos, assetsReceivers, currencies)
 	amount := getTransactionOperationValues(transaction, transferMoneyLogs, assetsReceivers, nbAssetsTransacted, cltInfo, currencies, allPrices)

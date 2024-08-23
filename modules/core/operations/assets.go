@@ -71,4 +71,18 @@ func findAllAssets(cltInfo *collections.CollectionInfo, txLogsInfos []*Transacti
 	} else {
 		return assets, nil
 	}
+
+	/*assets := make([]*Asset, 0)
+
+	transfersLogsInfo := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetTransfers)
+
+	for _, logInfo := range transfersLogsInfo {
+		asset, e0 := findAssetById(cltInfo, logInfo.TransactionLog.Address, logInfo.Asset, allDistances, dbInstance)
+		if e0 != nil {
+			return nil, e0
+		}
+		assets = append(assets, asset)
+	}
+
+	return assets, nil*/
 }

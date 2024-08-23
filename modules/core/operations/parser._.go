@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"os"
 	"slices"
+	"strings"
 )
 
 type assetUpdate struct {
@@ -40,8 +41,8 @@ func safeGetAssetForParser(collection, contract, assetId string, allAssets []*As
 func getCurrenciesAddresses(currencies map[string]*collections.Currency) []string {
 	addresses := make([]string, 0)
 	for _, currency := range currencies {
-		if !slices.Contains(addresses, currency.Contract) {
-			addresses = append(addresses, currency.Contract)
+		if !slices.Contains(addresses, strings.ToLower(currency.Contract)) {
+			addresses = append(addresses, strings.ToLower(currency.Contract))
 		}
 	}
 	return addresses
@@ -84,8 +85,16 @@ func filterManyTransferLogsForOneAsset(txLogsInfo []*TransactionLogInfo) (filter
 					return !slices.Contains(senders, s)
 				})
 				logInfo := transfersLogsOfAssets[0]
-				logInfo.From = fSenders[0]
-				logInfo.To = fReceivers[0]
+				if len(fSenders) > 0 {
+					logInfo.From = fSenders[0]
+				} else {
+					logInfo.From = senders[0]
+				}
+				if len(fReceivers) > 0 {
+					logInfo.To = fReceivers[0]
+				} else {
+					logInfo.To = receivers[0]
+				}
 				filtered = append(filtered, logInfo)
 			} else {
 				filtered = append(filtered, transfersLogsOfAssets[0])
@@ -158,7 +167,7 @@ func extractLogInfosForTxLogItem(txLog *transactions_infos.TransactionLog, cltIn
 	} else {
 		if eventHex == os.Getenv("ETH_TRANSFER_LOG_HEX") {
 			currenciesAddresses := getCurrenciesAddresses(currencies)
-			isMoney := len(topics) == 3 && data != "" && slices.Contains(currenciesAddresses, address)
+			isMoney := len(topics) == 3 && data != "" && slices.Contains(currenciesAddresses, strings.ToLower(address))
 			if isMoney {
 				logInfo = &TransactionLogInfo{}
 				logInfo.EventName = os.Getenv("ETH_TRANSFER_LOG_MONEY")
@@ -205,19 +214,19 @@ func writeIDSInTransferLogs(txLogsInfo []*TransactionLogInfo) {
 func getTransactionLogInfoReceivers(txLogsInfo []*TransactionLogInfo) []string {
 	recipients := make([]string, 0)
 	for _, logInfo := range txLogsInfo {
-		if !slices.Contains(recipients, logInfo.To) {
-			recipients = append(recipients, logInfo.To)
+		if !slices.Contains(recipients, strings.ToLower(logInfo.To)) {
+			recipients = append(recipients, strings.ToLower(logInfo.To))
 		}
 	}
 	return recipients
 }
 
-func getNumberOfAssetsTransacted(txLogsInfo []*TransactionLogInfo) int {
+func getNumberOfAssetsTransacted(txLogsInfo []*TransactionLogInfo, assetsReceivers []string) int {
 	assets := make([]string, 0)
 	filtered := filterTransactionLogsInfo(txLogsInfo, filterTxLogsInfoAllAssetTransfers)
 	for _, logInfo := range filtered {
 		if logInfo.Asset != "" {
-			if !slices.Contains(assets, logInfo.Asset) {
+			if !slices.Contains(assets, logInfo.Asset) && slices.Contains(assetsReceivers, logInfo.To) {
 				assets = append(assets, logInfo.Asset)
 			}
 		}
@@ -230,7 +239,7 @@ func getTransferMoneyLogsOnAssetsReceivers(txLogsInfo []*TransactionLogInfo, ass
 	transferMoneyLogsInfos := filterTransactionLogsInfo(txLogsInfo, filterTxLogsInfoMoneyTransfers)
 	filteredLogsInfos := make([]*TransactionLogInfo, 0)
 	for _, logInfo := range transferMoneyLogsInfos {
-		if slices.Contains(currenciesAddresses, logInfo.TransactionLog.Address) && (slices.Contains(assetsReceivers, logInfo.From) || slices.Contains(assetsReceivers, logInfo.To)) {
+		if slices.Contains(currenciesAddresses, strings.ToLower(logInfo.TransactionLog.Address)) && (slices.Contains(assetsReceivers, strings.ToLower(logInfo.From)) || slices.Contains(assetsReceivers, strings.ToLower(logInfo.To))) {
 			filteredLogsInfos = append(filteredLogsInfos, logInfo)
 		}
 	}

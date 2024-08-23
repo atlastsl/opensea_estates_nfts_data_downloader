@@ -49,6 +49,7 @@ func readFlags() (*string, *string, *int, bool) {
 	// go run main.go -x decentraland -t blocks_info -n 1
 	// go run main.go -x decentraland -t tx_info -n 1
 	// go run main.go -x decentraland -t tx_logs -n 1
+	// go run main.go -x decentraland -t operations -n 1
 
 	if *collection == "" {
 		showUsageAndExit(0)

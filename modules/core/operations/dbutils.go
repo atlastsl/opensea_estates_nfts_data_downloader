@@ -5,6 +5,7 @@ import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/core/tiles_distances"
+	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"decentraland_data_downloader/modules/helpers"
 	"errors"
@@ -21,8 +22,12 @@ func getAssetFromDatabase(collection, contract, assetId string, dbInstance *mong
 	dbCollection := database.CollectionInstance(dbInstance, asset)
 	payload := bson.M{"collection": collection, "contract": contract, "asset_id": assetId}
 	err := dbCollection.FirstWithCtx(context.Background(), payload, asset)
-	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, err
+	if err != nil {
+		if !errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, err
+		} else {
+			asset = nil
+		}
 	}
 	return asset, nil
 }
@@ -69,7 +74,7 @@ func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.D
 }
 
 func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]int, error) {
-	dbCollection := database.CollectionInstance(dbInstance, &transactions_infos.TransactionInfo{})
+	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	matchStage := bson.D{
 		{"$match", bson.D{{"collection", collection}}},
 	}
@@ -81,13 +86,19 @@ func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]
 	sortStage := bson.D{
 		{"$sort", bson.D{{"_id", 1}}},
 	}
+	skipStage := bson.D{
+		{"$skip", 0},
+	}
+	limitStage := bson.D{
+		{"$limit", 70000},
+	}
 	asArrayStage := bson.D{
 		{"$group", bson.D{
 			{"_id", nil},
 			{"blockNumbers", bson.D{{"$push", "$_id"}}},
 		}},
 	}
-	cursor, err := dbCollection.Aggregate(context.Background(), mongo.Pipeline{matchStage, groupStage, sortStage, asArrayStage})
+	cursor, err := dbCollection.Aggregate(context.Background(), mongo.Pipeline{matchStage, groupStage, sortStage, skipStage, limitStage, asArrayStage})
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +128,11 @@ func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]
 	return blockNumbers, nil
 }
 
-func getTransactionInfoByBlockNumber(collection string, blockNumber int, dbInstance *mongo.Database) ([]*TransactionFull, error) {
+func getTransactionInfoByBlockNumber(blockNumber int, dbInstance *mongo.Database) ([]*TransactionFull, error) {
 	txInfoDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionInfo{})
 	txLogsDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionLog{})
 
-	cursor, err := txInfoDbTable.Find(context.Background(), bson.M{"collection": collection, "block_number": blockNumber})
+	cursor, err := txInfoDbTable.Find(context.Background(), bson.M{"block_number": blockNumber})
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +143,7 @@ func getTransactionInfoByBlockNumber(collection string, blockNumber int, dbInsta
 		return nil, err
 	}
 
-	cursor, err = txLogsDbTable.Find(context.Background(), bson.M{"collection": collection, "block_number": blockNumber})
+	cursor, err = txLogsDbTable.Find(context.Background(), bson.M{"block_number": blockNumber})
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +188,7 @@ func getMetadataByEstateAsset(asset *Asset, metadataName string, dbInstance *mon
 
 func getCoordinatesOfLandsByIdentifiers(collection, contract string, identifiers []string, dbInstance *mongo.Database) ([]string, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &Asset{})
-	filterPayload := bson.D{{"collection", collection}, {"contract", contract}, {"asset_id", bson.D{{"$in", identifiers}}}}
+	filterPayload := bson.D{{"collection", collection}, {"contract", contract}, {"asset_id", bson.D{{"$in", helpers.BSONStringA(identifiers)}}}}
 	cursor, err := dbCollection.Find(context.Background(), filterPayload)
 	if err != nil {
 		return nil, err
@@ -258,7 +269,7 @@ func getCurrencyPrices(dbInstance *mongo.Database) (map[string][]*collections.Cu
 
 	prices := make(map[string][]*collections.CurrencyPrice)
 	for _, currency := range currencies {
-		cursor, err := dbCollection.Find(context.Background(), bson.M{"currency": currency})
+		cursor, err := dbCollection.Find(context.Background(), bson.M{"currency": currency}, &options.FindOptions{Sort: bson.M{"start": 1}})
 		if err != nil {
 			return nil, nil
 		}
