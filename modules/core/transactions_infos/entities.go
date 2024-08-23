@@ -1,40 +1,28 @@
 package transactions_infos
 
 import (
+	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"github.com/kamva/mgm/v3"
 	"time"
 )
 
-type TransactionLogInfo struct {
-	EventName string `bson:"event_name,omitempty"`
-	From      string `bson:"from,omitempty"`
-	To        string `bson:"to,omitempty"`
-	Amount    string `bson:"amount,omitempty"`
-	Asset     string `bson:"asset,omitempty"`
-	Land      string `bson:"land,omitempty"`
-	Estate    string `bson:"estate,omitempty"`
-}
-
 type TransactionLog struct {
 	mgm.DefaultModel `bson:",inline"`
-	Collection       string              `bson:"collection,omitempty"`
-	TransactionHash  string              `bson:"transaction_hash,omitempty"`
-	Address          string              `bson:"address,omitempty"`
-	TransactionIndex int                 `bson:"transaction_index,omitempty"`
-	Topics           []string            `bson:"topics,omitempty"`
-	EventId          string              `bson:"event_id,omitempty"`
-	BlockHash        string              `bson:"block_hash,omitempty"`
-	BlockNumber      int                 `bson:"block_number,omitempty"`
-	Data             string              `bson:"data,omitempty"`
-	LogIndex         int                 `bson:"log_index,omitempty"`
-	Removed          bool                `bson:"removed"`
-	EventName        string              `bson:"event_name,omitempty"`
-	EventParams      *TransactionLogInfo `bson:"event_params,omitempty"`
+	Collection       string   `bson:"collection,omitempty"`
+	TransactionHash  string   `bson:"transaction_hash,omitempty"`
+	Address          string   `bson:"address,omitempty"`
+	TransactionIndex int      `bson:"transaction_index,omitempty"`
+	Topics           []string `bson:"topics,omitempty"`
+	EventId          string   `bson:"event_id,omitempty"`
+	BlockHash        string   `bson:"block_hash,omitempty"`
+	BlockNumber      int      `bson:"block_number,omitempty"`
+	Data             string   `bson:"data,omitempty"`
+	LogIndex         int      `bson:"log_index,omitempty"`
+	Removed          bool     `bson:"removed"`
 }
 
 type TransactionInfo struct {
 	mgm.DefaultModel  `bson:",inline"`
-	Collection        string    `bson:"collection,omitempty"`
 	TransactionHash   string    `bson:"transaction_hash,omitempty"`
 	BlockNumber       int       `bson:"block_number,omitempty"`
 	BlockHash         string    `bson:"block_hash,omitempty"`
@@ -55,4 +43,10 @@ type TransactionInfo struct {
 	V                 string    `bson:"v,omitempty"`
 	Type              string    `bson:"type,omitempty"`
 	Status            string    `bson:"status,omitempty"`
+}
+
+type transactionInput struct {
+	txHash    *transactions_hashes.TransactionHash
+	fetchInfo bool
+	fetchLogs bool
 }

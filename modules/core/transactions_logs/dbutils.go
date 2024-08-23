@@ -41,7 +41,7 @@ func saveTransactionsLogsInDatabase(txLogs []*transactions_infos.TransactionLog,
 
 		operations := make([]mongo.WriteModel, len(txLogs))
 		for i, txLog := range txLogs {
-			var filterPayload = bson.M{"collection": txLog.Collection, "address": txLog.Address, "transaction_hash": txLog.TransactionHash, "event_id": txLog.EventId}
+			var filterPayload = bson.M{"address": txLog.Address, "transaction_hash": txLog.TransactionHash, "event_id": txLog.EventId}
 			operations[i] = mongo.NewReplaceOneModel().SetFilter(filterPayload).SetReplacement(txLog).SetUpsert(true)
 		}
 		_, err := dbCollection.BulkWrite(context.Background(), operations)

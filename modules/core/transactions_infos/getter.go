@@ -2,7 +2,6 @@ package transactions_infos
 
 import (
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"math"
@@ -10,13 +9,13 @@ import (
 
 const PartitionsNbItem = 100
 
-func getTransactionsHashesSlices(collection collections.Collection, dbInstance *mongo.Database) (map[string][]*transactions_hashes.TransactionHash, error) {
+func getTransactionsHashesSlices(collection collections.Collection, dbInstance *mongo.Database) (map[string][]*transactionInput, error) {
 	transactionsHashes, err := getTransactionHashesFromDatabase(collection, dbInstance)
 	if err != nil {
 		return nil, err
 	}
 	nbParts := int(math.Ceil(float64(len(transactionsHashes)) / float64(PartitionsNbItem)))
-	txHashesSlices := make(map[string][]*transactions_hashes.TransactionHash)
+	txHashesSlices := make(map[string][]*transactionInput)
 	for i := 0; i < nbParts; i++ {
 		start := i * PartitionsNbItem
 		end := start + PartitionsNbItem
@@ -24,7 +23,7 @@ func getTransactionsHashesSlices(collection collections.Collection, dbInstance *
 			end = len(transactionsHashes)
 		}
 		txHash1 := transactionsHashes[start]
-		key := fmt.Sprintf("%s_%d", txHash1.TransactionHash, txHash1.BlockTimestamp.UnixMilli())
+		key := fmt.Sprintf("%s_%d", txHash1.txHash.TransactionHash, txHash1.txHash.BlockTimestamp.UnixMilli())
 		txHashesSlices[key] = transactionsHashes[start:end]
 	}
 	return txHashesSlices, nil

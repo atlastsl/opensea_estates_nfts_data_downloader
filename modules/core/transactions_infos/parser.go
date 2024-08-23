@@ -5,7 +5,6 @@ import (
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/helpers"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -41,78 +40,36 @@ func getTransactionReceipt(transactionHash string) (*helpers.EthTransactionRecei
 	return txReceipt, nil
 }
 
-func dclParseEventTopic(address string, topics []string, data string, cltInfo *collections.CollectionInfo) *TransactionLogInfo {
-	eventHex := topics[0]
-	var eventParams *TransactionLogInfo
-	if cltInfo.HasAsset(address) {
-		logTopic := cltInfo.GetLogTopic(address, eventHex)
-		if logTopic != nil {
-			eventParams = &TransactionLogInfo{}
-			eventParams.EventName = logTopic.Name
-			if logTopic.Name == "TransferAsset" {
-				eventParams.From = helpers.HexRemoveLeadingZeros(topics[1])
-				eventParams.To = helpers.HexRemoveLeadingZeros(topics[2])
-				eventParams.Asset, _ = helpers.HexConvertToString(topics[3])
-			} else if logTopic.Name == "AddLandInEstate" {
-				eventParams.Estate, _ = helpers.HexConvertToString(topics[1])
-				eventParams.Land, _ = helpers.HexConvertToString(topics[2])
-			} else if logTopic.Name == "RemoveLandFromEstate" {
-				eventParams.Estate, _ = helpers.HexConvertToString(topics[1])
-				eventParams.Land, _ = helpers.HexConvertToString(topics[2])
-				eventParams.To = helpers.HexRemoveLeadingZeros(topics[3])
-			}
-		}
-	} else {
-		if eventHex == os.Getenv("ETH_TRANSFER_LOG_HEX") && len(topics) == 3 && data != "" {
-			eventParams = &TransactionLogInfo{}
-			eventParams.EventName = os.Getenv("ETH_TRANSFER_LOG_MONEY")
-			eventParams.From = helpers.HexRemoveLeadingZeros(topics[1])
-			eventParams.To = helpers.HexRemoveLeadingZeros(topics[2])
-			eventParams.Amount, _ = helpers.HexConvertToString(data)
-		}
-	}
-	return eventParams
-}
-
-func parseEthEventLog(eventLog *helpers.EthEventLog, cltInfo *collections.CollectionInfo) *TransactionLog {
+func parseEthEventLog(eventLog *helpers.EthEventLog) *TransactionLog {
 	if eventLog.Address != nil && eventLog.Data != nil {
-		var txLogInfo *TransactionLogInfo
-		if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
-			txLogInfo = dclParseEventTopic(*eventLog.Address, eventLog.Topics, *eventLog.Data, cltInfo)
-		}
-		if txLogInfo != nil {
-			blockNumber, _ := helpers.HexConvertToInt(*eventLog.BlockNumber)
-			logIndex, _ := helpers.HexConvertToInt(*eventLog.LogIndex)
-			transactionIndex, _ := helpers.HexConvertToInt(*eventLog.TransactionIndex)
-			cleanTopics := helpers.ArrayMap(eventLog.Topics, func(t string) (bool, string) {
-				return true, helpers.HexRemoveLeadingZeros(t)
-			}, true, "")
-			txLog := &TransactionLog{}
-			txLog.CreatedAt = time.Now()
-			txLog.UpdatedAt = time.Now()
-			txLog.Collection = cltInfo.Name
-			txLog.TransactionHash = *eventLog.TransactionHash
-			txLog.Address = *eventLog.Address
-			txLog.TransactionIndex = transactionIndex
-			txLog.Topics = cleanTopics
-			txLog.EventId = strings.Join(cleanTopics, "-")
-			txLog.BlockHash = *eventLog.BlockHash
-			txLog.BlockNumber = blockNumber
-			txLog.Data = *eventLog.Data
-			txLog.LogIndex = logIndex
-			txLog.Removed = *eventLog.Removed
-			txLog.EventName = txLogInfo.EventName
-			txLog.EventParams = txLogInfo
-			return txLog
-		}
+		blockNumber, _ := helpers.HexConvertToInt(*eventLog.BlockNumber)
+		logIndex, _ := helpers.HexConvertToInt(*eventLog.LogIndex)
+		transactionIndex, _ := helpers.HexConvertToInt(*eventLog.TransactionIndex)
+		cleanTopics := helpers.ArrayMap(eventLog.Topics, func(t string) (bool, string) {
+			return true, helpers.HexRemoveLeadingZeros(t)
+		}, true, "")
+		txLog := &TransactionLog{}
+		txLog.CreatedAt = time.Now()
+		txLog.UpdatedAt = time.Now()
+		txLog.TransactionHash = *eventLog.TransactionHash
+		txLog.Address = *eventLog.Address
+		txLog.TransactionIndex = transactionIndex
+		txLog.Topics = cleanTopics
+		txLog.EventId = strings.Join(cleanTopics, "-")
+		txLog.BlockHash = *eventLog.BlockHash
+		txLog.BlockNumber = blockNumber
+		txLog.Data = *eventLog.Data
+		txLog.LogIndex = logIndex
+		txLog.Removed = *eventLog.Removed
+		return txLog
 	}
 	return nil
 }
 
-func parseTransactionLogs(logs []helpers.EthEventLog, cltInfo *collections.CollectionInfo) []*TransactionLog {
+func parseTransactionLogs(logs []helpers.EthEventLog) []*TransactionLog {
 	txLogs := make([]*TransactionLog, 0)
 	for _, log := range logs {
-		txLog := parseEthEventLog(&log, cltInfo)
+		txLog := parseEthEventLog(&log)
 		if txLog != nil {
 			txLogs = append(txLogs, txLog)
 		}
@@ -121,44 +78,56 @@ func parseTransactionLogs(logs []helpers.EthEventLog, cltInfo *collections.Colle
 }
 
 func parseTransactionInfo(transactionHash *transactions_hashes.TransactionHash, txDetails *helpers.EthTransaction, txReceipt *helpers.EthTransactionReceipt, cltInfo *collections.CollectionInfo) (*TransactionInfo, []*TransactionLog) {
-	txInfo := &TransactionInfo{}
-	txInfo.Collection = cltInfo.Name
-	txInfo.TransactionHash = transactionHash.TransactionHash
-	txInfo.BlockNumber, _ = helpers.HexConvertToInt(*txDetails.BlockNumber)
-	txInfo.BlockHash = *txDetails.BlockHash
-	txInfo.BlockTimestamp = transactionHash.BlockTimestamp
-	if txDetails.ChainID != nil {
-		txInfo.ChainID, _ = helpers.HexConvertToString(*txDetails.ChainID)
+	var txInfo *TransactionInfo
+	txLogs := make([]*TransactionLog, 0)
+	if txDetails != nil && txReceipt != nil {
+		txInfo = &TransactionInfo{}
+		txInfo.TransactionHash = transactionHash.TransactionHash
+		txInfo.BlockNumber, _ = helpers.HexConvertToInt(*txDetails.BlockNumber)
+		txInfo.BlockHash = *txDetails.BlockHash
+		txInfo.BlockTimestamp = transactionHash.BlockTimestamp
+		if txDetails.ChainID != nil {
+			txInfo.ChainID, _ = helpers.HexConvertToString(*txDetails.ChainID)
+		}
+		txInfo.Gas, _ = helpers.HexConvertToString(*txDetails.Gas)
+		txInfo.GasUsed, _ = helpers.HexConvertToString(*txReceipt.GasUsed)
+		txInfo.CumulativeGasUsed, _ = helpers.HexConvertToString(*txReceipt.CumulativeGasUsed)
+		txInfo.GasPrice, _ = helpers.HexConvertToString(*txReceipt.EffectiveGasPrice)
+		txInfo.From = *txDetails.From
+		txInfo.To = *txDetails.To
+		txInfo.Value, _ = helpers.HexConvertToString(*txDetails.Value)
+		txInfo.TransactionIndex, _ = helpers.HexConvertToInt(*txDetails.TransactionIndex)
+		txInfo.Input = *txDetails.Input
+		txInfo.Nonce, _ = helpers.HexConvertToInt(*txDetails.Nonce)
+		txInfo.R = *txDetails.R
+		txInfo.S = *txDetails.S
+		txInfo.V, _ = helpers.HexConvertToString(*txDetails.V)
+		txInfo.Type, _ = helpers.HexConvertToString(*txDetails.Type)
+		txInfo.Status, _ = helpers.HexConvertToString(*txReceipt.Status)
 	}
-	txInfo.Gas, _ = helpers.HexConvertToString(*txDetails.Gas)
-	txInfo.GasUsed, _ = helpers.HexConvertToString(*txReceipt.GasUsed)
-	txInfo.CumulativeGasUsed, _ = helpers.HexConvertToString(*txReceipt.CumulativeGasUsed)
-	txInfo.GasPrice, _ = helpers.HexConvertToString(*txReceipt.EffectiveGasPrice)
-	txInfo.From = *txDetails.From
-	txInfo.To = *txDetails.To
-	txInfo.Value, _ = helpers.HexConvertToString(*txDetails.Value)
-	txInfo.TransactionIndex, _ = helpers.HexConvertToInt(*txDetails.TransactionIndex)
-	txInfo.Input = *txDetails.Input
-	txInfo.Nonce, _ = helpers.HexConvertToInt(*txDetails.Nonce)
-	txInfo.R = *txDetails.R
-	txInfo.S = *txDetails.S
-	txInfo.V, _ = helpers.HexConvertToString(*txDetails.V)
-	txInfo.Type, _ = helpers.HexConvertToString(*txDetails.Type)
-	txInfo.Status, _ = helpers.HexConvertToString(*txReceipt.Status)
-	txLogs := parseTransactionLogs(txReceipt.Logs, cltInfo)
+	if txReceipt != nil {
+		txLogs = parseTransactionLogs(txReceipt.Logs)
+	}
 	return txInfo, txLogs
 }
 
-func convertTxHashToTxInfo(txHash *transactions_hashes.TransactionHash, cltInfo *collections.CollectionInfo) (*TransactionInfo, []*TransactionLog, error) {
-	txDetails, err := getTransactionByHash(txHash.TransactionHash)
+func convertTxHashToTxInfo(txInput *transactionInput, cltInfo *collections.CollectionInfo) (*TransactionInfo, []*TransactionLog, error) {
+	var txDetails *helpers.EthTransaction
+	var txReceipt *helpers.EthTransactionReceipt
+	var err error
+	if txInput.fetchInfo {
+		txDetails, err = getTransactionByHash(txInput.txHash.TransactionHash)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
-	txReceipt, err := getTransactionReceipt(txHash.TransactionHash)
+	if txInput.fetchLogs {
+		txReceipt, err = getTransactionReceipt(txInput.txHash.TransactionHash)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
-	txInfo, tTxLogs := parseTransactionInfo(txHash, txDetails, txReceipt, cltInfo)
+	txInfo, tTxLogs := parseTransactionInfo(txInput.txHash, txDetails, txReceipt, cltInfo)
 	return txInfo, tTxLogs, err
 }
 
@@ -177,24 +146,28 @@ func saveTransactionInfo(txInfos []*TransactionInfo, txLogs []*TransactionLog) e
 	return err
 }
 
-func parseTransactionsInfo(transactionsHashes []*transactions_hashes.TransactionHash, cltInfo *collections.CollectionInfo, wg *sync.WaitGroup) error {
+func parseTransactionsInfo(inputs []*transactionInput, cltInfo *collections.CollectionInfo, wg *sync.WaitGroup) error {
 	txInfos := make([]*TransactionInfo, 0)
 	txLogs := make([]*TransactionLog, 0)
 	allErrors := make([]error, 0)
 
 	parserWg := &sync.WaitGroup{}
 	dataLocker := &sync.RWMutex{}
-	for _, txHash := range transactionsHashes {
+	for _, txInput := range inputs {
 		parserWg.Add(1)
 		go func() {
 			defer parserWg.Done()
 			dataLocker.Lock()
-			txInfo, tTxLogs, err := convertTxHashToTxInfo(txHash, cltInfo)
+			txInfo, tTxLogs, err := convertTxHashToTxInfo(txInput, cltInfo)
 			if err != nil {
 				allErrors = append(allErrors, err)
 			} else {
-				txInfos = append(txInfos, txInfo)
-				txLogs = append(txLogs, tTxLogs...)
+				if txInfo != nil {
+					txInfos = append(txInfos, txInfo)
+				}
+				if tTxLogs != nil && len(tTxLogs) > 0 {
+					txLogs = append(txLogs, tTxLogs...)
+				}
 			}
 			dataLocker.Unlock()
 		}()
@@ -208,8 +181,27 @@ func parseTransactionsInfo(transactionsHashes []*transactions_hashes.Transaction
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_ = saveTransactionInfo(txInfos, txLogs)
+		err := saveTransactionInfo(txInfos, txLogs)
+		if err != nil {
+			println(err.Error())
+		}
 	}()
+
+	/*txInfos := make([]*TransactionInfo, 0)
+	txLogs := make([]*TransactionLog, 0)
+	for _, txInput := range inputs {
+		txInfo, tTxLogs, err := convertTxHashToTxInfo(txInput, cltInfo)
+		if err != nil {
+			return err
+		} else {
+			if txInfo != nil {
+				txInfos = append(txInfos, txInfo)
+			}
+			if tTxLogs != nil && len(tTxLogs) > 0 {
+				txLogs = append(txLogs, tTxLogs...)
+			}
+		}
+	}*/
 
 	return nil
 }

@@ -23,6 +23,7 @@ type CollectionInfo struct {
 	mgm.DefaultModel `bson:",inline"`
 	Name             string                   `bson:"name,omitempty"`
 	Blockchain       string                   `bson:"blockchain,omitempty"`
+	Currency         string                   `bson:"currency,omitempty"`
 	Assets           []CollectionInfoAsset    `bson:"assets,omitempty"`
 	LogTopics        []CollectionInfoLogTopic `bson:"log_topics,omitempty"`
 }
@@ -64,16 +65,17 @@ func (cltInfo *CollectionInfo) GetLogTopic(address string, eventHex string) *Col
 }
 
 type Currency struct {
-	mgm.DefaultModel
-	Blockchain string `bson:"blockchain,omitempty"`
-	Contract   string `bson:"contract,omitempty"`
-	Decimals   int64  `bson:"decimals,omitempty"`
-	Symbols    string `bson:"symbols,omitempty"`
+	mgm.DefaultModel `bson:",inline"`
+	Blockchain       string `bson:"blockchain,omitempty"`
+	Contract         string `bson:"contract,omitempty"`
+	Decimals         int64  `bson:"decimals,omitempty"`
+	Name             string `bson:"name,omitempty"`
+	Symbols          string `bson:"symbols,omitempty"`
+	PriceMap         string `bson:"price_map,omitempty"`
 }
 
 type CurrencyPrice struct {
 	mgm.DefaultModel `bson:",inline"`
-	Blockchain       string    `bson:"blockchain,omitempty"`
 	Currency         string    `bson:"currency,omitempty"`
 	Start            time.Time `bson:"start,omitempty"`
 	End              time.Time `bson:"end,omitempty"`

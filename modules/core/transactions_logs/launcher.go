@@ -148,10 +148,10 @@ func (x TxLogsDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGro
 						niMap := nextInput.(map[string]any)
 						addData := niMap["addData"]
 						mainData := niMap["mainData"]
-						cltInfo := addData.(*collections.CollectionInfo)
+						_ = addData.(*collections.CollectionInfo)
 						events := mainData.([]*helpers.EthEventLog)
 
-						err := parseTransactionLogs(events, cltInfo, wg)
+						err := parseTransactionLogs(events, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

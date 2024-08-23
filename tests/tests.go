@@ -15,4 +15,5 @@ func main() {
 	//blocks_info.TestBlocksInfo()
 	//collections.SaveInfo(collections.DecentralandCollectionInfo)
 	transactions_infos.TestTransactionInfo()
+	//collections.SaveCurrencies()
 }

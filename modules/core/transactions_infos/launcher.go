@@ -4,7 +4,6 @@ import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/helpers"
 	"reflect"
 	"sync"
@@ -88,7 +87,7 @@ func (x TxDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) 
 						addData := niMap["addData"]
 						mainData := niMap["mainData"]
 
-						err := parseTransactionsInfo(mainData.([]*transactions_hashes.TransactionHash), addData.(*collections.CollectionInfo), wg)
+						err := parseTransactionsInfo(mainData.([]*transactionInput), addData.(*collections.CollectionInfo), wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

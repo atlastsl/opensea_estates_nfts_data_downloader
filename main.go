@@ -6,6 +6,7 @@ import (
 	"decentraland_data_downloader/modules/core/blocks_info"
 	"decentraland_data_downloader/modules/core/eth_events"
 	"decentraland_data_downloader/modules/core/movements"
+	"decentraland_data_downloader/modules/core/operations"
 	"decentraland_data_downloader/modules/core/ops_events"
 	"decentraland_data_downloader/modules/core/tiles"
 	"decentraland_data_downloader/modules/core/tiles_distances"
@@ -96,5 +97,7 @@ func main() {
 		transactions_infos.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == transactions_logs.TxLogsArguments {
 		transactions_logs.Launch(strings.ToLower(*collection), *nbParsers)
+	} else if *dataType == operations.OperationArgument {
+		operations.Launch(strings.ToLower(*collection), *nbParsers)
 	}
 }
