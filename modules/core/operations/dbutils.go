@@ -8,6 +8,7 @@ import (
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"decentraland_data_downloader/modules/helpers"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
@@ -79,7 +80,7 @@ func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.D
 func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]int, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	matchStage := bson.D{
-		{"$match", bson.D{{"collection", collection}}},
+		{"$match", bson.D{{"collection", collection}, {"block_number", 6241030}}},
 	}
 	groupStage := bson.D{
 		{"$group", bson.D{
@@ -169,6 +170,14 @@ func getTransactionInfoByBlockNumber(blockNumber int, dbInstance *mongo.Database
 	return transactions, nil
 }
 
+func updateTransactionsList(key string, item *TransactionFull, table *map[string][]*TransactionFull) {
+	_, found := (*table)[key]
+	if !found {
+		(*table)[key] = make([]*TransactionFull, 0)
+	}
+	(*table)[key] = append((*table)[key], item)
+}
+
 func getTransactionInfoByBlockNumbers(blockNumbers []int, dbInstance *mongo.Database) (map[string][]*TransactionFull, error) {
 	txInfoDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionInfo{})
 	txLogsDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionLog{})
@@ -196,21 +205,17 @@ func getTransactionInfoByBlockNumbers(blockNumbers []int, dbInstance *mongo.Data
 	}
 
 	result := make(map[string][]*TransactionFull)
-	for _, blockNumber := range blockNumbers {
-		bnTxInfos := helpers.ArrayFilter(txInfos, func(txInfo *transactions_infos.TransactionInfo) bool {
-			return txInfo.BlockNumber == blockNumber
+	for _, txInfo := range txInfos {
+		tTxLogs := helpers.ArrayFilter(txLogs, func(log *transactions_infos.TransactionLog) bool {
+			return log.TransactionHash == txInfo.TransactionHash
 		})
-		transactions := make([]*TransactionFull, 0)
-		for _, txInfo := range bnTxInfos {
-			tTxLogs := helpers.ArrayFilter(txLogs, func(log *transactions_infos.TransactionLog) bool {
-				return log.BlockNumber == blockNumber && log.TransactionHash == txInfo.TransactionHash
-			})
-			if len(tTxLogs) > 0 {
-				transactions = append(transactions, &TransactionFull{Transaction: txInfo, Logs: tTxLogs})
-			}
-		}
+		blockNumber := txInfo.BlockNumber
 		task := strconv.FormatInt(int64(blockNumber), 10)
-		result[task] = transactions
+		if len(tTxLogs) > 0 {
+			updateTransactionsList(task, &TransactionFull{Transaction: txInfo, Logs: tTxLogs}, &result)
+			v, _ := json.MarshalIndent(result, "", "  ")
+			println(string(v))
+		}
 	}
 
 	return result, nil
