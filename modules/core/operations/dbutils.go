@@ -80,7 +80,7 @@ func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.D
 func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]int, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	matchStage := bson.D{
-		{"$match", bson.D{{"collection", collection}, {"block_number", 6241030}}},
+		{"$match", bson.D{{"collection", collection}}},
 	}
 	groupStage := bson.D{
 		{"$group", bson.D{
