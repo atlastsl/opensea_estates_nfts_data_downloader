@@ -8,7 +8,6 @@ import (
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"decentraland_data_downloader/modules/helpers"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
@@ -213,8 +212,6 @@ func getTransactionInfoByBlockNumbers(blockNumbers []int, dbInstance *mongo.Data
 		task := strconv.FormatInt(int64(blockNumber), 10)
 		if len(tTxLogs) > 0 {
 			updateTransactionsList(task, &TransactionFull{Transaction: txInfo, Logs: tTxLogs}, &result)
-			v, _ := json.MarshalIndent(result, "", "  ")
-			println(string(v))
 		}
 	}
 
