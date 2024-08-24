@@ -9,3 +9,11 @@ func BSONStringA(sa []string) (result bson.A) {
 	}
 	return
 }
+
+func BSONIntA(sa []int) (result bson.A) {
+	result = bson.A{}
+	for _, e := range sa {
+		result = append(result, e)
+	}
+	return
+}

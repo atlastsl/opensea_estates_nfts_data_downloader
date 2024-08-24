@@ -62,43 +62,23 @@ func (x OperationMainDataGetter) FetchData(worker *multithread.Worker) {
 	}
 	worker.LoggingExtra("Get Distinct block numbers of transactions OK!")
 
-	worker.LoggingExtra("Start fetching eth events logs !")
-	for _, blockNumber := range blockNumbers {
-
-		interrupted := (*worker.ItrChecker)(worker)
-		if interrupted {
-			worker.LoggingExtra("Break getter loop. Process interrupted !")
-			break
-		}
-
-		worker.LoggingExtra("Getting more data...")
-
-		var data any = nil
-		var err0 error = nil
-
-		task := strconv.FormatInt(int64(blockNumber), 10)
-		transactions, err2 := getTransactionInfoByBlockNumber(blockNumber, databaseInstance)
-		if err2 != nil {
-			err0 = err2
-		} else {
-			data = map[string]interface{}{
-				"tasks": []string{task},
-				"data": map[string][]*TransactionFull{
-					task: transactions,
-				},
-			}
-		}
-
-		multithread.PublishDataNotification(worker, task, helpers.AnytiseData(data), err0)
-		if err0 != nil {
-			worker.LoggingError("Error when getting data !", err0)
-			break
-		} else {
-			worker.LoggingExtra("Sleeping 1s before getting more data...")
-			time.Sleep(1 * time.Millisecond)
-		}
-
+	worker.LoggingExtra("Start getting transaction info & logs !")
+	var data any = nil
+	tasks := make([]string, len(blockNumbers))
+	for i, blockNumber := range blockNumbers {
+		tasks[i] = strconv.Itoa(blockNumber)
 	}
+	transactions, err2 := getTransactionInfoByBlockNumbers(blockNumbers, databaseInstance)
+	if err2 != nil {
+		err = err2
+	} else {
+		data = map[string]interface{}{
+			"tasks": tasks,
+			"data":  transactions,
+		}
+	}
+	worker.LoggingExtra("Getting transaction info & logs OK - Publishing data... !")
+	multithread.PublishDataNotification(worker, "-", helpers.AnytiseData(data), err)
 
 	multithread.PublishDoneNotification(worker)
 

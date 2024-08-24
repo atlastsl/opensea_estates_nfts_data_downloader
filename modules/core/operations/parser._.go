@@ -23,6 +23,7 @@ type assetUpdate struct {
 const (
 	filterTxLogsInfoColAssetTransfers = "CollectionAssetsTransfers"
 	filterTxLogsInfoColAssetInter     = "CollectionAssetsInter"
+	filterTxLogsInfoColAssetAll       = "CollectionAssetsAll"
 	filterTxLogsInfoAllAssetTransfers = "AllAssetsTransfers"
 	filterTxLogsInfoMoneyTransfers    = "MoneyTransfers"
 )
@@ -115,6 +116,12 @@ func filterTransactionLogsInfo(txLogsInfos []*TransactionLogInfo, filterName str
 	} else if filterName == filterTxLogsInfoColAssetInter {
 		for _, info := range txLogsInfos {
 			if info.EventName != os.Getenv("ETH_TRANSFER_LOG_ASSET") && info.IsCollectionAsset {
+				filtered = append(filtered, info)
+			}
+		}
+	} else if filterName == filterTxLogsInfoColAssetAll {
+		for _, info := range txLogsInfos {
+			if info.IsCollectionAsset {
 				filtered = append(filtered, info)
 			}
 		}

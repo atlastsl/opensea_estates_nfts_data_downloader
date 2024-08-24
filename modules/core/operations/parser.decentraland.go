@@ -165,7 +165,7 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 	// get estate asset related to updates in allAssets list
 	asset := safeGetAssetForParser(updates.collection, updates.contract, updates.identifier, allAssets)
 	if asset == nil {
-		return nil, errors.New("{dclSaveUpdatesItemAsMetadata} estate asset not found")
+		return nil, errors.New(fmt.Sprintf("{dclSaveUpdatesItemAsMetadata} estate asset not found {{%s - %s}}", updates.contract, updates.identifier))
 	}
 
 	// asset related to updates in an estate

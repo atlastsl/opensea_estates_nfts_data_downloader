@@ -15,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"reflect"
+	"strconv"
 )
 
 func getAssetFromDatabase(collection, contract, assetId string, dbInstance *mongo.Database) (*Asset, error) {
@@ -51,6 +52,8 @@ func saveAssetMetadataInDatabase(assetMetadataList []*AssetMetadata, dbInstance 
 			payload := bson.M{"collection": metadata.Collection, "asset_contract": metadata.AssetContract, "asset_id": metadata.AssetId}
 			if !metadata.MacroRef.IsZero() {
 				payload["macro"] = metadata.MacroRef
+			} else {
+				payload["name"] = metadata.Name
 			}
 			if !metadata.Date.IsZero() {
 				payload["date"] = metadata.Date
@@ -166,6 +169,53 @@ func getTransactionInfoByBlockNumber(blockNumber int, dbInstance *mongo.Database
 	return transactions, nil
 }
 
+func getTransactionInfoByBlockNumbers(blockNumbers []int, dbInstance *mongo.Database) (map[string][]*TransactionFull, error) {
+	txInfoDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionInfo{})
+	txLogsDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionLog{})
+
+	cursor, err := txInfoDbTable.Find(context.Background(), bson.M{"block_number": bson.M{"$in": helpers.BSONIntA(blockNumbers)}})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+	txInfos := make([]*transactions_infos.TransactionInfo, 0)
+	err = cursor.All(context.Background(), &txInfos)
+	if err != nil {
+		return nil, err
+	}
+
+	cursor, err = txLogsDbTable.Find(context.Background(), bson.M{"block_number": bson.M{"$in": helpers.BSONIntA(blockNumbers)}})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+	txLogs := make([]*transactions_infos.TransactionLog, 0)
+	err = cursor.All(context.Background(), &txLogs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string][]*TransactionFull)
+	for _, blockNumber := range blockNumbers {
+		bnTxInfos := helpers.ArrayFilter(txInfos, func(txInfo *transactions_infos.TransactionInfo) bool {
+			return txInfo.BlockNumber == blockNumber
+		})
+		transactions := make([]*TransactionFull, 0)
+		for _, txInfo := range bnTxInfos {
+			tTxLogs := helpers.ArrayFilter(txLogs, func(log *transactions_infos.TransactionLog) bool {
+				return log.BlockNumber == blockNumber && log.TransactionHash == txInfo.TransactionHash
+			})
+			if len(tTxLogs) > 0 {
+				transactions = append(transactions, &TransactionFull{Transaction: txInfo, Logs: tTxLogs})
+			}
+		}
+		task := strconv.FormatInt(int64(blockNumber), 10)
+		result[task] = transactions
+	}
+
+	return result, nil
+}
+
 func getMetadataByEstateAsset(asset *Asset, metadataName string, dbInstance *mongo.Database) (*AssetMetadata, error) {
 	metadataItem := &AssetMetadata{}
 	dbCollection := database.CollectionInstance(dbInstance, metadataItem)
@@ -203,21 +253,6 @@ func getCoordinatesOfLandsByIdentifiers(collection, contract string, identifiers
 		return true, fmt.Sprintf("%d,%d", t.X, t.Y)
 	}, true, "")
 	return coords, nil
-}
-
-func getDistancesByEstateAssetLands(collection, contract string, coords []string, dbInstance *mongo.Database) ([]*tiles_distances.MapTileMacroDistance, error) {
-	dbCollection := database.CollectionInstance(dbInstance, &tiles_distances.MapTileMacroDistance{})
-	tilesSlugs := helpers.ArrayMap(coords, func(t string) (bool, string) {
-		return true, fmt.Sprintf("%s|%s|%s", collection, contract, t)
-	}, true, "")
-	cursor, err := dbCollection.Find(context.Background(), bson.M{"tile_slug": bson.M{"$in": helpers.BSONStringA(tilesSlugs)}})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(context.Background())
-	distances := make([]*tiles_distances.MapTileMacroDistance, 0)
-	err = cursor.All(context.Background(), &distances)
-	return distances, err
 }
 
 func saveOperationsInDatabase(operations []*Operation, dbInstance *mongo.Database) error {
