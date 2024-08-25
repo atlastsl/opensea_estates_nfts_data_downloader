@@ -23,7 +23,14 @@ func TestOperations() {
 		panic(err)
 	}*/
 
-	transactions, err := getTransactionInfoByBlockNumber(7754211, dbInstance)
+	/*transactions, err := getTransactionInfoByBlockNumbers(blockNumbers, dbInstance)
+	if err != nil {
+		panic(err)
+	}*/
+
+	/*println("a")*/
+
+	transactions, err := getTransactionInfoByBlockNumber(5284297, dbInstance)
 	if err != nil {
 		panic(err)
 	}
@@ -33,5 +40,5 @@ func TestOperations() {
 		panic(err)
 	}
 
-	println(additionalData, transactions)
+	/*println(additionalData, transactions)*/
 }

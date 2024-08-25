@@ -77,7 +77,7 @@ func getTransferMoneyOperationValues(transferMoneyLogsInfo []*TransactionLogInfo
 				decimals := new(big.Int)
 				decimals.Exp(big.NewInt(10), big.NewInt(currency.Decimals), nil)
 				bgCcyOpValue.Quo(bgCcyOpValue, new(big.Float).SetInt(decimals))
-				if bgCcyOpValue.Cmp(big.NewFloat(minAmtValue)) < 0 {
+				if bgCcyOpValue.Cmp(big.NewFloat(minAmtValue)) > 0 {
 					if nbAssetsTransacted > 1 {
 						bgCcyOpValue.Quo(bgCcyOpValue, new(big.Float).SetInt64(int64(nbAssetsTransacted)))
 					}
