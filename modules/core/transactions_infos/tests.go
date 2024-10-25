@@ -25,7 +25,7 @@ func TestTransactionInfo() {
 	if err != nil {
 		panic(err)
 	}*/
-	txHashes, err := getTransactionHashesFromDatabase(collections.CollectionDcl, dbInstance)
+	aTxHashes, err := getTransactionHashesFromDatabase(collections.CollectionDcl, dbInstance)
 	if err != nil {
 		panic(err)
 	}
@@ -37,8 +37,11 @@ func TestTransactionInfo() {
 		panic(err)
 	}
 
-	err = parseTransactionsInfo(txHashes, cltInfo, nil)
-	if err != nil {
-		panic(err)
+	for _, txHashes := range aTxHashes {
+		err = parseTransactionsInfo(txHashes, cltInfo, nil)
+		if err != nil {
+			panic(err)
+		}
 	}
+
 }

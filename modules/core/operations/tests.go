@@ -30,7 +30,7 @@ func TestOperations() {
 
 	/*println("a")*/
 
-	transactions, err := getTransactionInfoByBlockNumber(5284297, dbInstance)
+	transactions, err := getTransactionInfoByBlockNumber("ethereum", 5284297, dbInstance)
 	if err != nil {
 		panic(err)
 	}
