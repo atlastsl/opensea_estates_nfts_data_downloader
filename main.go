@@ -2,17 +2,11 @@ package main
 
 import (
 	"decentraland_data_downloader/modules/app/multithread"
-	"decentraland_data_downloader/modules/core/assets"
-	"decentraland_data_downloader/modules/core/blocks_info"
-	"decentraland_data_downloader/modules/core/eth_events"
-	"decentraland_data_downloader/modules/core/movements"
 	"decentraland_data_downloader/modules/core/operations"
-	"decentraland_data_downloader/modules/core/ops_events"
 	"decentraland_data_downloader/modules/core/tiles"
 	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
-	"decentraland_data_downloader/modules/core/transactions_logs"
 	"flag"
 	"github.com/joho/godotenv"
 	"log"
@@ -39,16 +33,17 @@ func readFlags() (*string, *string, *int, bool) {
 	flag.Usage = usage
 	flag.Parse()
 
-	// go run main.go -x decentraland -t tiles -n 1
-	// go run main.go -x decentraland -t tiles_distances -n 1
 	// go run main.go -x decentraland -t estates_assets -n 1
 	// go run main.go -x decentraland -t eth_events -n 1
 	// go run main.go -x decentraland -t ops_events -n 1
 	// go run main.go -x decentraland -t movements -n 1
-	// go run main.go -x decentraland -t tx_hashes -n 1
 	// go run main.go -x decentraland -t blocks_info -n 1
-	// go run main.go -x decentraland -t tx_info -n 1
 	// go run main.go -x decentraland -t tx_logs -n 1
+
+	// go run main.go -x decentraland -t tiles -n 1
+	// go run main.go -x decentraland -t tiles_distances -n 1
+	// go run main.go -x decentraland -t tx_hashes -n 1
+	// go run main.go -x decentraland -t tx_info -n 1
 	// go run main.go -x decentraland -t operations -n 1
 
 	if *collection == "" {
@@ -82,22 +77,10 @@ func main() {
 		tiles.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == tiles_distances.TileDistancesArgument {
 		tiles_distances.Launch(strings.ToLower(*collection), *nbParsers)
-	} else if *dataType == assets.EstatesAssetsArguments {
-		assets.Launch(strings.ToLower(*collection), *nbParsers)
-	} else if *dataType == eth_events.EthEventsArguments {
-		eth_events.Launch(strings.ToLower(*collection), *nbParsers)
-	} else if *dataType == ops_events.OpsEventsArguments {
-		ops_events.Launch(strings.ToLower(*collection), *nbParsers)
-	} else if *dataType == movements.AssetsMovementsArguments {
-		movements.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == transactions_hashes.TxHashesArguments {
 		transactions_hashes.Launch(strings.ToLower(*collection), *nbParsers)
-	} else if *dataType == blocks_info.BlocksInfoArguments {
-		blocks_info.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == transactions_infos.TxInfoArguments {
 		transactions_infos.Launch(strings.ToLower(*collection), *nbParsers)
-	} else if *dataType == transactions_logs.TxLogsArguments {
-		transactions_logs.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == operations.OperationArgument {
 		operations.Launch(strings.ToLower(*collection), *nbParsers)
 	}

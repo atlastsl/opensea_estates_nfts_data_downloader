@@ -1,9 +1,9 @@
 package operations
 
 import (
-	"decentraland_data_downloader/modules/core/assets"
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/core/tiles_distances"
+	"decentraland_data_downloader/modules/core_old/assets"
 	"decentraland_data_downloader/modules/helpers"
 	"errors"
 	"fmt"

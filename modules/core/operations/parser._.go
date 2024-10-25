@@ -147,11 +147,12 @@ func filterTransactionLogsInfo(txLogsInfos []*TransactionLogInfo, filterName str
 func extractLogInfosForTxLogItem(txLog *transactions_infos.TransactionLog, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency) *TransactionLogInfo {
 	topics := txLog.Topics
 	address := txLog.Address
+	blockchain := txLog.Blockchain
 	data := txLog.Data
 	eventHex := topics[0]
 	var logInfo *TransactionLogInfo
-	if cltInfo.HasAsset(address) {
-		logTopic := cltInfo.GetLogTopic(address, eventHex)
+	if cltInfo.HasAsset(address, blockchain) {
+		logTopic := cltInfo.GetLogTopic(address, blockchain, eventHex)
 		if logTopic != nil {
 			logInfo = &TransactionLogInfo{}
 			logInfo.EventName = logTopic.Name

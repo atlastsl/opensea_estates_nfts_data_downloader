@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func getTransactionByHash(transactionHash string) (*helpers.EthTransaction, error) {
+func getTransactionByHash(blockchain, transactionHash string) (*helpers.EthTransaction, error) {
 	payloadMap := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "eth_getTransactionByHash",
@@ -18,14 +18,14 @@ func getTransactionByHash(transactionHash string) (*helpers.EthTransaction, erro
 		"params":  []string{transactionHash},
 	}
 	txInfo := &helpers.EthTransaction{}
-	err := helpers.InfuraRequest(payloadMap, txInfo)
+	err := helpers.InfuraRequest(blockchain, payloadMap, txInfo)
 	if err != nil {
 		return nil, err
 	}
 	return txInfo, nil
 }
 
-func getTransactionReceipt(transactionHash string) (*helpers.EthTransactionReceipt, error) {
+func getTransactionReceipt(blockchain, transactionHash string) (*helpers.EthTransactionReceipt, error) {
 	payloadMap := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "eth_getTransactionReceipt",
@@ -33,14 +33,14 @@ func getTransactionReceipt(transactionHash string) (*helpers.EthTransactionRecei
 		"params":  []string{transactionHash},
 	}
 	txReceipt := &helpers.EthTransactionReceipt{}
-	err := helpers.InfuraRequest(payloadMap, txReceipt)
+	err := helpers.InfuraRequest(blockchain, payloadMap, txReceipt)
 	if err != nil {
 		return nil, err
 	}
 	return txReceipt, nil
 }
 
-func parseEthEventLog(eventLog *helpers.EthEventLog) *TransactionLog {
+func parseEthEventLog(eventLog *helpers.EthEventLog, blockchain string) *TransactionLog {
 	if eventLog.Address != nil && eventLog.Data != nil {
 		blockNumber, _ := helpers.HexConvertToInt(*eventLog.BlockNumber)
 		logIndex, _ := helpers.HexConvertToInt(*eventLog.LogIndex)
@@ -49,6 +49,7 @@ func parseEthEventLog(eventLog *helpers.EthEventLog) *TransactionLog {
 			return true, helpers.HexRemoveLeadingZeros(t)
 		}, true, "")
 		txLog := &TransactionLog{}
+		txLog.Blockchain = blockchain
 		txLog.CreatedAt = time.Now()
 		txLog.UpdatedAt = time.Now()
 		txLog.TransactionHash = *eventLog.TransactionHash
@@ -66,10 +67,10 @@ func parseEthEventLog(eventLog *helpers.EthEventLog) *TransactionLog {
 	return nil
 }
 
-func parseTransactionLogs(logs []helpers.EthEventLog) []*TransactionLog {
+func parseTransactionLogs(logs []helpers.EthEventLog, blockchain string) []*TransactionLog {
 	txLogs := make([]*TransactionLog, 0)
 	for _, log := range logs {
-		txLog := parseEthEventLog(&log)
+		txLog := parseEthEventLog(&log, blockchain)
 		if txLog != nil {
 			txLogs = append(txLogs, txLog)
 		}
@@ -82,6 +83,7 @@ func parseTransactionInfo(transactionHash *transactions_hashes.TransactionHash, 
 	txLogs := make([]*TransactionLog, 0)
 	if txDetails != nil && txReceipt != nil {
 		txInfo = &TransactionInfo{}
+		txInfo.Blockchain = transactionHash.Blockchain
 		txInfo.TransactionHash = transactionHash.TransactionHash
 		txInfo.BlockNumber, _ = helpers.HexConvertToInt(*txDetails.BlockNumber)
 		txInfo.BlockHash = *txDetails.BlockHash
@@ -106,7 +108,7 @@ func parseTransactionInfo(transactionHash *transactions_hashes.TransactionHash, 
 		txInfo.Status, _ = helpers.HexConvertToString(*txReceipt.Status)
 	}
 	if txReceipt != nil {
-		txLogs = parseTransactionLogs(txReceipt.Logs)
+		txLogs = parseTransactionLogs(txReceipt.Logs, transactionHash.Blockchain)
 	}
 	return txInfo, txLogs
 }
@@ -116,13 +118,13 @@ func convertTxHashToTxInfo(txInput *transactionInput, cltInfo *collections.Colle
 	var txReceipt *helpers.EthTransactionReceipt
 	var err error
 	if txInput.fetchInfo {
-		txDetails, err = getTransactionByHash(txInput.txHash.TransactionHash)
+		txDetails, err = getTransactionByHash(txInput.txHash.Blockchain, txInput.txHash.TransactionHash)
 	}
 	if err != nil {
 		return nil, nil, err
 	}
 	if txInput.fetchLogs {
-		txReceipt, err = getTransactionReceipt(txInput.txHash.TransactionHash)
+		txReceipt, err = getTransactionReceipt(txInput.txHash.Blockchain, txInput.txHash.TransactionHash)
 	}
 	if err != nil {
 		return nil, nil, err

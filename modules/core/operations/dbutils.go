@@ -8,6 +8,7 @@ import (
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"decentraland_data_downloader/modules/helpers"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
@@ -15,7 +16,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"reflect"
-	"strconv"
 )
 
 func getAssetFromDatabase(collection, contract, assetId string, dbInstance *mongo.Database) (*Asset, error) {
@@ -50,10 +50,9 @@ func saveAssetMetadataInDatabase(assetMetadataList []*AssetMetadata, dbInstance 
 		operations := make([]mongo.WriteModel, len(assetMetadataList))
 		for i, metadata := range assetMetadataList {
 			payload := bson.M{"collection": metadata.Collection, "asset_contract": metadata.AssetContract, "asset_id": metadata.AssetId}
-			if !metadata.MacroRef.IsZero() {
-				payload["macro"] = metadata.MacroRef
-			} else {
-				payload["name"] = metadata.Name
+			payload["category"] = metadata.Category
+			if metadata.MacroType != "" {
+				payload["macro_type"] = metadata.MacroType
 			}
 			if !metadata.Date.IsZero() {
 				payload["date"] = metadata.Date
@@ -76,24 +75,30 @@ func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.D
 	return cltInfo, nil
 }
 
-func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]int, error) {
+func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]*blockNumberInput, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	matchStage := bson.D{
 		{"$match", bson.D{{"collection", collection}}},
 	}
 	groupStage := bson.D{
 		{"$group", bson.D{
-			{"_id", "$block_number"},
+			{"_id", bson.D{
+				{"blockchain", "$blockchain"},
+				{"block_number", "$block_number"},
+			}},
+			{"timestamp", bson.D{
+				{"$max", "$block_timestamp"},
+			}},
 		}},
 	}
 	sortStage := bson.D{
-		{"$sort", bson.D{{"_id", 1}}},
+		{"$sort", bson.D{{"timestamp", 1}}},
 	}
 	skipStage := bson.D{
 		{"$skip", 0},
 	}
 	limitStage := bson.D{
-		{"$limit", 70000},
+		{"$limit", 100000},
 	}
 	asArrayStage := bson.D{
 		{"$group", bson.D{
@@ -118,24 +123,23 @@ func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]
 	if reflect.TypeOf(tmp).Kind() != reflect.Slice {
 		return nil, errors.New("block numbers is not a slice")
 	}
-	blockNumbers := make([]int, 0)
-	for _, item := range tmp.(primitive.A) {
-		if reflect.TypeOf(item).Kind() == reflect.Int {
-			blockNumbers = append(blockNumbers, int(item.(int64)))
-		} else if reflect.TypeOf(item).Kind() == reflect.Int32 {
-			blockNumbers = append(blockNumbers, int(item.(int32)))
-		} else if reflect.TypeOf(item).Kind() == reflect.Int64 {
-			blockNumbers = append(blockNumbers, int(item.(int64)))
-		}
+	tmpStr, err := json.Marshal(tmp)
+	if err != nil {
+		return nil, err
+	}
+	blockNumbers := make([]*blockNumberInput, 0)
+	err = json.Unmarshal(tmpStr, &blockNumbers)
+	if err != nil {
+		return nil, err
 	}
 	return blockNumbers, nil
 }
 
-func getTransactionInfoByBlockNumber(blockNumber int, dbInstance *mongo.Database) ([]*TransactionFull, error) {
+func getTransactionInfoByBlockNumber(blockchain string, blockNumber int, dbInstance *mongo.Database) ([]*TransactionFull, error) {
 	txInfoDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionInfo{})
 	txLogsDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionLog{})
 
-	cursor, err := txInfoDbTable.Find(context.Background(), bson.M{"block_number": blockNumber})
+	cursor, err := txInfoDbTable.Find(context.Background(), bson.M{"blockchain": blockchain, "block_number": blockNumber})
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +150,7 @@ func getTransactionInfoByBlockNumber(blockNumber int, dbInstance *mongo.Database
 		return nil, err
 	}
 
-	cursor, err = txLogsDbTable.Find(context.Background(), bson.M{"block_number": blockNumber})
+	cursor, err = txLogsDbTable.Find(context.Background(), bson.M{"blockchain": blockchain, "block_number": blockNumber})
 	if err != nil {
 		return nil, err
 	}
@@ -177,30 +181,48 @@ func updateTransactionsList(key string, item *TransactionFull, table *map[string
 	(*table)[key] = append((*table)[key], item)
 }
 
-func getTransactionInfoByBlockNumbers(blockNumbers []int, dbInstance *mongo.Database) (map[string][]*TransactionFull, error) {
+func getTransactionInfoByBlockNumbers(blockNumbers []*blockNumberInput, dbInstance *mongo.Database) (map[string][]*TransactionFull, error) {
 	txInfoDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionInfo{})
 	txLogsDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionLog{})
 
-	cursor, err := txInfoDbTable.Find(context.Background(), bson.M{"block_number": bson.M{"$in": helpers.BSONIntA(blockNumbers)}})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(context.Background())
-	txInfos := make([]*transactions_infos.TransactionInfo, 0)
-	err = cursor.All(context.Background(), &txInfos)
-	if err != nil {
-		return nil, err
+	blockchains := make([]string, 0)
+	blockNumbersPerChain := make(map[string][]int)
+	for _, item := range blockNumbers {
+		_, ok := blockNumbersPerChain[item.blockchain]
+		if !ok {
+			blockchains = append(blockchains, item.blockchain)
+			blockNumbersPerChain[item.blockchain] = make([]int, 0)
+		}
+		blockNumbersPerChain[item.blockchain] = append(blockNumbersPerChain[item.blockchain], item.blockNumber)
 	}
 
-	cursor, err = txLogsDbTable.Find(context.Background(), bson.M{"block_number": bson.M{"$in": helpers.BSONIntA(blockNumbers)}})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(context.Background())
+	txInfos := make([]*transactions_infos.TransactionInfo, 0)
 	txLogs := make([]*transactions_infos.TransactionLog, 0)
-	err = cursor.All(context.Background(), &txLogs)
-	if err != nil {
-		return nil, err
+
+	for blockchain, _blockNumbers := range blockNumbersPerChain {
+		cursor, err := txInfoDbTable.Find(context.Background(), bson.M{"blockchain": blockchain, "block_number": bson.M{"$in": helpers.BSONIntA(_blockNumbers)}})
+		if err != nil {
+			return nil, err
+		}
+		bTxInfos := make([]*transactions_infos.TransactionInfo, 0)
+		err = cursor.All(context.Background(), &bTxInfos)
+		if err != nil {
+			return nil, err
+		}
+		_ = cursor.Close(context.Background())
+		txInfos = append(txInfos, bTxInfos...)
+
+		cursor, err = txLogsDbTable.Find(context.Background(), bson.M{"blockchain": blockchain, "block_number": bson.M{"$in": helpers.BSONIntA(_blockNumbers)}})
+		if err != nil {
+			return nil, err
+		}
+		bTxLogs := make([]*transactions_infos.TransactionLog, 0)
+		err = cursor.All(context.Background(), &bTxLogs)
+		if err != nil {
+			return nil, err
+		}
+		_ = cursor.Close(context.Background())
+		txLogs = append(txLogs, bTxLogs...)
 	}
 
 	result := make(map[string][]*TransactionFull)
@@ -209,7 +231,7 @@ func getTransactionInfoByBlockNumbers(blockNumbers []int, dbInstance *mongo.Data
 			return log.TransactionHash == txInfo.TransactionHash
 		})
 		blockNumber := txInfo.BlockNumber
-		task := strconv.FormatInt(int64(blockNumber), 10)
+		task := fmt.Sprintf("%s_%d", txInfo.Blockchain, int64(blockNumber))
 		if len(tTxLogs) > 0 {
 			updateTransactionsList(task, &TransactionFull{Transaction: txInfo, Logs: tTxLogs}, &result)
 		}

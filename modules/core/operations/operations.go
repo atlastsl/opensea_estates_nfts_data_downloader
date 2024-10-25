@@ -194,7 +194,7 @@ func convertTransferLogToOperation(transferLogInfo *TransactionLogInfo, transact
 	operation.TransactionHash = transferLogInfo.TransactionLog.TransactionHash
 	operation.OperationType = operationType
 	operation.TransactionType = transactionType
-	operation.Chain = cltInfo.Blockchain
+	operation.Blockchain = transactionInfo.Blockchain
 	operation.BlockNumber = int64(transactionInfo.BlockNumber)
 	operation.BlockHash = transactionInfo.BlockHash
 	operation.Date = transactionInfo.BlockTimestamp

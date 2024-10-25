@@ -8,6 +8,7 @@ import (
 
 type TransactionLog struct {
 	mgm.DefaultModel `bson:",inline"`
+	Blockchain       string   `bson:"blockchain,omitempty"`
 	Collection       string   `bson:"collection,omitempty"`
 	TransactionHash  string   `bson:"transaction_hash,omitempty"`
 	Address          string   `bson:"address,omitempty"`
@@ -23,6 +24,7 @@ type TransactionLog struct {
 
 type TransactionInfo struct {
 	mgm.DefaultModel  `bson:",inline"`
+	Blockchain        string    `bson:"blockchain,omitempty"`
 	TransactionHash   string    `bson:"transaction_hash,omitempty"`
 	BlockNumber       int       `bson:"block_number,omitempty"`
 	BlockHash         string    `bson:"block_hash,omitempty"`

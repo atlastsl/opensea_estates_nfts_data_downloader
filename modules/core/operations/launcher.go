@@ -5,8 +5,8 @@ import (
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
+	"fmt"
 	"reflect"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -66,7 +66,7 @@ func (x OperationMainDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = nil
 	tasks := make([]string, len(blockNumbers))
 	for i, blockNumber := range blockNumbers {
-		tasks[i] = strconv.Itoa(blockNumber)
+		tasks[i] = fmt.Sprintf("%s_%d", blockNumber.blockchain, blockNumber.blockNumber)
 	}
 	transactions, err2 := getTransactionInfoByBlockNumbers(blockNumbers, databaseInstance)
 	if err2 != nil {

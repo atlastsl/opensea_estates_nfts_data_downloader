@@ -7,11 +7,13 @@ import (
 )
 
 type CollectionInfoAsset struct {
-	Name     string `bson:"name,omitempty"`
-	Contract string `bson:"contract,omitempty"`
+	Blockchain string `bson:"blockchain,omitempty"`
+	Name       string `bson:"name,omitempty"`
+	Contract   string `bson:"contract,omitempty"`
 }
 
 type CollectionInfoLogTopic struct {
+	Blockchain string   `bson:"blockchain,omitempty"`
 	Name       string   `bson:"name,omitempty"`
 	Hash       string   `bson:"hash,omitempty"`
 	Contracts  []string `bson:"contracts,omitempty"`
@@ -22,7 +24,7 @@ type CollectionInfoLogTopic struct {
 type CollectionInfo struct {
 	mgm.DefaultModel `bson:",inline"`
 	Name             string                   `bson:"name,omitempty"`
-	Blockchain       string                   `bson:"blockchain,omitempty"`
+	Blockchain       []string                 `bson:"blockchain,omitempty"`
 	Currency         string                   `bson:"currency,omitempty"`
 	Assets           []CollectionInfoAsset    `bson:"assets,omitempty"`
 	LogTopics        []CollectionInfoLogTopic `bson:"log_topics,omitempty"`
@@ -40,24 +42,24 @@ func (cltInfo *CollectionInfo) GetAsset(name string) *CollectionInfoAsset {
 	return nil
 }
 
-func (cltInfo *CollectionInfo) HasAsset(address string) bool {
+func (cltInfo *CollectionInfo) HasAsset(address, blockchain string) bool {
 	if cltInfo == nil {
 		return false
 	}
 	for _, asset := range cltInfo.Assets {
-		if asset.Contract == address {
+		if asset.Blockchain == blockchain && asset.Contract == address {
 			return true
 		}
 	}
 	return false
 }
 
-func (cltInfo *CollectionInfo) GetLogTopic(address string, eventHex string) *CollectionInfoLogTopic {
+func (cltInfo *CollectionInfo) GetLogTopic(address, blockchain string, eventHex string) *CollectionInfoLogTopic {
 	if cltInfo == nil {
 		return nil
 	}
 	for _, logTopic := range cltInfo.LogTopics {
-		if slices.Contains(logTopic.Contracts, address) && logTopic.Hash == eventHex {
+		if logTopic.Blockchain == blockchain && slices.Contains(logTopic.Contracts, address) && logTopic.Hash == eventHex {
 			return &logTopic
 		}
 	}

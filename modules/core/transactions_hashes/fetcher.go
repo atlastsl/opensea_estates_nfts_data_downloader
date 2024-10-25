@@ -40,12 +40,20 @@ func getLogsBuildParams(addresses []string, topic string, bnInterval []uint64) (
 	return json.MarshalIndent(payload, "", "  ")
 }
 
+func getLogsBuildBaseUrl(blockchain string) string {
+	if blockchain == collections.PolygonBlockchain {
+		return "https://polygon-mainnet.infura.io/v3"
+	}
+	return "https://mainnet.infura.io/v3"
+}
+
 func getEthEventsLogsReq(logTopicInfo *collections.CollectionInfoLogTopic, bnInterval []uint64) (*helpers.EthResponse, error) {
 	if logTopicInfo == nil || len(logTopicInfo.Contracts) == 0 {
 		return nil, errors.New("no token contracts found")
 	}
 
-	url := fmt.Sprintf("https://mainnet.infura.io/v3/%s", os.Getenv("INFURA_API_KEY"))
+	baseUrl := getLogsBuildBaseUrl(logTopicInfo.Blockchain)
+	url := fmt.Sprintf("%s/%s", baseUrl, os.Getenv("INFURA_API_KEY"))
 
 	payload, err := getLogsBuildParams(logTopicInfo.Contracts, logTopicInfo.Hash, bnInterval)
 	if err != nil {
@@ -57,7 +65,7 @@ func getEthEventsLogsReq(logTopicInfo *collections.CollectionInfoLogTopic, bnInt
 	return response, err
 }
 
-func handleEthEventsResponse(response *helpers.EthResponse) ([]*helpers.EthEventLog, []uint64, error) {
+func handleEthEventsResponse(logTopicInfo *collections.CollectionInfoLogTopic, response *helpers.EthResponse) ([]*helpers.EthEventLog, []uint64, error) {
 	if response.Error != nil {
 		message := "an error occurred on fetching data from Infura API !"
 		if reflect.TypeOf(response.Error).Kind() == reflect.Map {
@@ -97,6 +105,9 @@ func handleEthEventsResponse(response *helpers.EthResponse) ([]*helpers.EthEvent
 		if err != nil {
 			return nil, nil, err
 		}
+		for _, event := range events {
+			event.Blockchain = &logTopicInfo.Blockchain
+		}
 		return events, nil, nil
 	}
 }
@@ -107,7 +118,7 @@ func getEthEventsLogsOfTopic(logTopicInfo *collections.CollectionInfoLogTopic, l
 	if err != nil {
 		return nil, 0, err
 	}
-	events, bnInterval, err := handleEthEventsResponse(response)
+	events, bnInterval, err := handleEthEventsResponse(logTopicInfo, response)
 	if err != nil {
 		return nil, 0, err
 	} else if bnInterval != nil {
@@ -115,7 +126,7 @@ func getEthEventsLogsOfTopic(logTopicInfo *collections.CollectionInfoLogTopic, l
 		if err != nil {
 			return nil, 0, err
 		}
-		events, _, err = handleEthEventsResponse(response)
+		events, _, err = handleEthEventsResponse(logTopicInfo, response)
 		if err != nil {
 			return nil, 0, err
 		}

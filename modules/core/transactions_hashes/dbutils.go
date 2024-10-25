@@ -43,8 +43,8 @@ func saveTransactionHashesInDatabase(transactionHashes []*TransactionHash, dbIns
 
 		operations := make([]mongo.WriteModel, len(transactionHashes))
 		for i, txHash := range transactionHashes {
-			var filterPayload = bson.M{"collection": txHash.Collection, "transaction_hash": txHash.TransactionHash}
-			var updatePayload = bson.M{"$set": bson.M{"collection": txHash.Collection, "transaction_hash": txHash.TransactionHash, "block_number": txHash.BlockNumber, "block_hash": txHash.BlockHash, "updated_at": time.Now()}}
+			var filterPayload = bson.M{"collection": txHash.Collection, "blockchain": txHash.Blockchain, "transaction_hash": txHash.TransactionHash}
+			var updatePayload = bson.M{"$set": bson.M{"collection": txHash.Collection, "blockchain": txHash.Blockchain, "transaction_hash": txHash.TransactionHash, "block_number": txHash.BlockNumber, "block_hash": txHash.BlockHash, "updated_at": time.Now()}}
 			operations[i] = mongo.NewUpdateOneModel().SetFilter(filterPayload).SetUpdate(updatePayload).SetUpsert(true)
 		}
 		_, err := dbCollection.BulkWrite(context.Background(), operations)

@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
 	"slices"
+	"strings"
 )
 
 func _parseDclTileInfo(collection collections.Collection, tileId string, dclTile DclMapTile, districts []DclMapDistrict) (*MapTile, *MapMacro) {
@@ -23,7 +24,7 @@ func _parseDclTileInfo(collection collections.Collection, tileId string, dclTile
 		insideType = dclTile.Type
 		if idx >= 0 {
 			insideName = districts[idx].Name
-			insideId = fmt.Sprintf("District-%d", idx)
+			insideId = fmt.Sprintf("Dst-%d", idx)
 		} else {
 			insideType = "nothing"
 		}
@@ -33,7 +34,7 @@ func _parseDclTileInfo(collection collections.Collection, tileId string, dclTile
 		Collection:   string(collection),
 		Contract:     os.Getenv("DECENTRALAND_LAND_CONTRACT"),
 		Type:         insideType,
-		Slug:         fmt.Sprintf("%s-%s", insideName, insideId),
+		Slug:         fmt.Sprintf("%s-%s", strings.ReplaceAll(insideName, " ", "-"), insideId),
 		Name:         insideName,
 		MacroID:      insideId,
 	}

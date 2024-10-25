@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"decentraland_data_downloader/modules/core/collections"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 )
 
 type EthEventLog struct {
+	Blockchain       *string  `json:"blockchain"`
 	Address          *string  `json:"address"`
 	BlockHash        *string  `json:"blockHash"`
 	BlockNumber      *string  `json:"blockNumber"`
@@ -81,7 +83,14 @@ type EthTransactionReceipt struct {
 	Type              *string       `json:"type"`
 }
 
-func InfuraRequest(payload map[string]any, result interface{}) error {
+func infuraBaseUrl(blockchain string) string {
+	if blockchain == collections.PolygonBlockchain {
+		return "https://polygon-mainnet.infura.io/v3"
+	}
+	return "https://mainnet.infura.io/v3"
+}
+
+func InfuraRequest(blockchain string, payload map[string]any, result interface{}) error {
 	rv := reflect.ValueOf(result)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return errors.New("invalid result handler. Must be a pointer to a non nil value")
@@ -91,7 +100,8 @@ func InfuraRequest(payload map[string]any, result interface{}) error {
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf("https://mainnet.infura.io/v3/%s", os.Getenv("INFURA_API_KEY"))
+	baseUrl := infuraBaseUrl(blockchain)
+	url := fmt.Sprintf("%s/%s", baseUrl, os.Getenv("INFURA_API_KEY"))
 
 	response := &EthResponse{}
 	err = PostData(url, "", payloadStr, response)

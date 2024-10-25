@@ -11,6 +11,7 @@ import (
 func parseEthEventLog(eventLog *helpers.EthEventLog, collection collections.Collection) *TransactionHash {
 	blockNumber, _ := helpers.HexConvertToInt(*eventLog.BlockNumber)
 	txHash := &TransactionHash{}
+	txHash.Blockchain = *eventLog.Blockchain
 	txHash.Collection = string(collection)
 	txHash.TransactionHash = *eventLog.TransactionHash
 	txHash.BlockHash = *eventLog.BlockHash

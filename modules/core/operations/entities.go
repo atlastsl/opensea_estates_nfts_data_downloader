@@ -37,7 +37,7 @@ type Operation struct {
 	TransactionHash  string             `bson:"transaction_hash,omitempty"`
 	OperationType    string             `bson:"operation_type,omitempty"`
 	TransactionType  string             `bson:"transaction_type,omitempty"`
-	Chain            string             `bson:"chain,omitempty"`
+	Blockchain       string             `bson:"blockchain,omitempty"`
 	BlockNumber      int64              `bson:"block_number,omitempty"`
 	BlockHash        string             `bson:"block_hash,omitempty"`
 	Date             time.Time          `bson:"mvt_date,omitempty"`
@@ -128,4 +128,9 @@ const (
 type TransactionFull struct {
 	Transaction *transactions_infos.TransactionInfo
 	Logs        []*transactions_infos.TransactionLog
+}
+
+type blockNumberInput struct {
+	blockNumber int
+	blockchain  string
 }
