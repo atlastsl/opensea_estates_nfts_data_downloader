@@ -74,6 +74,7 @@ type Currency struct {
 	Name             string `bson:"name,omitempty"`
 	Symbols          string `bson:"symbols,omitempty"`
 	PriceMap         string `bson:"price_map,omitempty"`
+	PriceSlug        string `bson:"price_slug,omitempty"`
 }
 
 type CurrencyPrice struct {
@@ -85,6 +86,7 @@ type CurrencyPrice struct {
 	High             float64   `bson:"high,omitempty"`
 	Low              float64   `bson:"low,omitempty"`
 	Close            float64   `bson:"close,omitempty"`
+	Avg              float64   `bson:"avg,omitempty"`
 	Volume           float64   `bson:"volume,omitempty"`
 	MarketCap        float64   `bson:"market_cap,omitempty"`
 }

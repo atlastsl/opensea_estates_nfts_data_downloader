@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -85,7 +84,7 @@ type EthTransactionReceipt struct {
 }
 
 func infuraBaseUrl(blockchain string) string {
-	if blockchain == collections.PolygonBlockchain {
+	if blockchain == "polygon" {
 		return "https://polygon-mainnet.infura.io/v3"
 	}
 	return "https://mainnet.infura.io/v3"

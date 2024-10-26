@@ -3,14 +3,11 @@ package collections
 import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
-	"encoding/csv"
+	"decentraland_data_downloader/modules/helpers"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
-	"os"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -21,6 +18,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "ETH",
 		Name:       "Ether",
+		PriceSlug:  "ethereum",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -28,6 +26,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "WETH",
 		Name:       "Wrapped ETH",
+		PriceSlug:  "ethereum",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -35,6 +34,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "MKR",
 		Name:       "Maker",
+		PriceSlug:  "maker",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -42,6 +42,7 @@ var currencies = []Currency{
 		Decimals:   6,
 		Symbols:    "USDC",
 		Name:       "USD Coin",
+		PriceSlug:  "usd-coin",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -49,6 +50,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "SAI",
 		Name:       "Single-Collateral DAI",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -56,6 +58,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "MANA",
 		Name:       "Decentraland MANA",
+		PriceSlug:  "decentraland",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -63,6 +66,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "BNB",
 		Name:       "Binance Coin",
+		PriceSlug:  "binance-coin",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -70,6 +74,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "MANABNT",
 		Name:       "MANABNT Smart Token Relay",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -77,6 +82,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "DAI",
 		Name:       "Multi-Collateral DAI",
+		PriceSlug:  "dai",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -84,6 +90,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "BNT",
 		Name:       "Bancor Network Token",
+		PriceSlug:  "bancor",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -91,6 +98,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "LAND20",
 		Name:       "Decentraland LAND20 Token",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -98,6 +106,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "RCN",
 		Name:       "Ripio Credit Network Token",
+		PriceSlug:  "ripio-credit-network",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -105,6 +114,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "SNT",
 		Name:       "Status Network Token",
+		PriceSlug:  "status",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -112,6 +122,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "ANJ",
 		Name:       "Aragon Court",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -119,6 +130,7 @@ var currencies = []Currency{
 		Decimals:   8,
 		Symbols:    "WBTC",
 		Name:       "Wrapped BTC",
+		PriceSlug:  "wrapped-bitcoin",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -126,6 +138,7 @@ var currencies = []Currency{
 		Decimals:   6,
 		Symbols:    "USDT",
 		Name:       "Tether USD",
+		PriceSlug:  "tether",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -133,6 +146,7 @@ var currencies = []Currency{
 		Decimals:   4,
 		Symbols:    "SCOTT",
 		Name:       "SCOTT",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -140,6 +154,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "META",
 		Name:       "META Dsc",
+		PriceSlug:  "meta-bsc",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -147,6 +162,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "APS",
 		Name:       "Afterparty Shards",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -154,6 +170,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "RARI",
 		Name:       "Rarible Token",
+		PriceSlug:  "rarible",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -161,6 +178,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "DPTS",
 		Name:       "Decentraland Parcel Test",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -168,6 +186,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "EGCS",
 		Name:       "East Genesis Corner Shards",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -175,6 +194,7 @@ var currencies = []Currency{
 		Decimals:   0,
 		Symbols:    "CREATION",
 		Name:       "The Creation",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -182,6 +202,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "VCS",
 		Name:       "Vice City Shards",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -190,6 +211,7 @@ var currencies = []Currency{
 		Symbols:    "aWETH",
 		Name:       "Aave interest bearing WETH",
 		PriceMap:   "WETH",
+		PriceSlug:  "ethereum",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -197,6 +219,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "EGCS2",
 		Name:       "East Genesis Corner Shards 2",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -204,6 +227,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "APS2",
 		Name:       "Afterparty Shards 2",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -211,6 +235,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "FSE",
 		Name:       "First Shards Ever",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -218,6 +243,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "UNI-V1",
 		Name:       "Uniswap V1",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -225,6 +251,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "SST",
 		Name:       "Second Shards Test",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -232,6 +259,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "DLAND",
 		Name:       "Decentraland Land DLAND",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -239,6 +267,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "SAND",
 		Name:       "The Sandbox SAND",
+		PriceSlug:  "the-sandbox",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -246,6 +275,7 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "UNI-V1-2",
 		Name:       "Uniswap V1 N2",
+		PriceSlug:  "",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -254,6 +284,7 @@ var currencies = []Currency{
 		Symbols:    "aUSDC",
 		Name:       "Aave interest bearing USDC",
 		PriceMap:   "USDC",
+		PriceSlug:  "usd-coin",
 	},
 	{
 		Blockchain: EthereumBlockchain,
@@ -261,36 +292,39 @@ var currencies = []Currency{
 		Decimals:   18,
 		Symbols:    "LP",
 		Name:       "Decentraland Bounty",
+		PriceSlug:  "",
 	},
 }
 
-func readPriceCsv(currency *Currency) []*CurrencyPrice {
+func downloadCurrencyPrices(currency *Currency) []*CurrencyPrice {
 	prices := make([]*CurrencyPrice, 0)
 
-	filePath := fmt.Sprintf("./files/prices/%s_prices.csv", strings.ToLower(currency.Symbols))
-	f, err := os.Open(filePath)
-	if err != nil {
-		log.Println("Unable to read input file "+filePath, err)
+	if currency.PriceSlug == "" {
+		log.Println("Currency has no prices registered " + currency.Name)
 		return prices
 	}
-	defer f.Close()
 
-	csvReader := csv.NewReader(f)
-	records, err := csvReader.ReadAll()
+	dateEnd := time.Now().Format(time.DateOnly)
+	baseUrl := fmt.Sprintf("https://coincodex.com/api/coincodexcoins/get_historical_data_by_slug/%s/2005-01-01/%s/1", currency.PriceSlug, dateEnd)
+
+	result, err := helpers.FetchData(baseUrl, "")
 	if err != nil {
-		log.Fatal("Unable to parse file as CSV for "+filePath, err)
+		log.Fatal("Unable to download prices for currency "+currency.Name, err)
 	}
+	records := result["data"].([]any)
 
-	for _, record := range records[1:] {
-		start, _ := time.Parse(time.DateOnly, record[0])
-		end, _ := time.Parse(time.DateOnly, record[1])
-		pOpen, _ := strconv.ParseFloat(record[2], 64)
-		pClose, _ := strconv.ParseFloat(record[3], 64)
-		pHigh, _ := strconv.ParseFloat(record[4], 64)
-		pLow, _ := strconv.ParseFloat(record[5], 64)
-		volume, _ := strconv.ParseFloat(record[6], 64)
-		marketCap, _ := strconv.ParseFloat(record[7], 64)
-		price := &CurrencyPrice{Currency: currency.Symbols, Start: start, End: end, Open: pOpen, Close: pClose, High: pHigh, Low: pLow, Volume: volume, MarketCap: marketCap}
+	for _, _record := range records {
+		record := _record.(map[string]interface{})
+		start, _ := time.Parse(time.DateTime, record["time_start"].(string))
+		end, _ := time.Parse(time.DateTime, record["time_end"].(string))
+		pOpen := record["price_open_usd"].(float64)
+		pClose := record["price_close_usd"].(float64)
+		pHigh := record["price_high_usd"].(float64)
+		pLow := record["price_low_usd"].(float64)
+		pAvg := record["price_avg_usd"].(float64)
+		volume := record["volume_usd"].(float64)
+		marketCap := record["market_cap_usd"].(float64)
+		price := &CurrencyPrice{Currency: currency.Symbols, Start: start, End: end, Open: pOpen, Close: pClose, High: pHigh, Low: pLow, Avg: pAvg, Volume: volume, MarketCap: marketCap}
 		prices = append(prices, price)
 	}
 
@@ -309,7 +343,7 @@ func SaveCurrencies() {
 		currency.UpdatedAt = time.Now().UTC()
 		payload := bson.M{"blockchain": currencies[i].Blockchain, "contract": currencies[i].Contract}
 		operations[i] = mongo.NewReplaceOneModel().SetFilter(payload).SetReplacement(&currency).SetUpsert(true)
-		prices := readPriceCsv(&currency)
+		prices := downloadCurrencyPrices(&currency)
 		for _, price := range prices {
 			prcPayload := bson.M{"currency": price.Currency, "start": price.Start, "end": price.End}
 			prcOperation := mongo.NewReplaceOneModel().SetFilter(prcPayload).SetReplacement(price).SetUpsert(true)
