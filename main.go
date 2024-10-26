@@ -2,6 +2,7 @@ package main
 
 import (
 	"decentraland_data_downloader/modules/app/multithread"
+	"decentraland_data_downloader/modules/core/blocks_info"
 	"decentraland_data_downloader/modules/core/operations"
 	"decentraland_data_downloader/modules/core/tiles"
 	"decentraland_data_downloader/modules/core/tiles_distances"
@@ -79,6 +80,8 @@ func main() {
 		tiles_distances.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == transactions_hashes.TxHashesArguments {
 		transactions_hashes.Launch(strings.ToLower(*collection), *nbParsers)
+	} else if *dataType == blocks_info.BlocksInfoArguments {
+		blocks_info.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == transactions_infos.TxInfoArguments {
 		transactions_infos.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == operations.OperationArgument {
