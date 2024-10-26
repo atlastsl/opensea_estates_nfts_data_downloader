@@ -98,7 +98,7 @@ func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]
 		{"$skip", 0},
 	}
 	limitStage := bson.D{
-		{"$limit", 10},
+		{"$limit", 100000},
 	}
 	asArrayStage := bson.D{
 		{"$group", bson.D{

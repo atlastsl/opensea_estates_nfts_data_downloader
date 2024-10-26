@@ -21,12 +21,14 @@ func TestOperations() {
 	/*blockNumbers, err := getDistinctBlocksNumbers(string(collection), dbInstance)
 	if err != nil {
 		panic(err)
-	}*/
+	}
 
-	/*transactions, err := getTransactionInfoByBlockNumbers(blockNumbers, dbInstance)
+	transactions, err := getTransactionInfoByBlockNumbers(blockNumbers, dbInstance)
 	if err != nil {
 		panic(err)
-	}*/
+	}
+
+	println(additionalData, transactions)*/
 
 	/*println("a")*/
 
