@@ -14,14 +14,18 @@ func TestBlocksInfo() {
 	}
 	defer database.CloseDatabaseConnection(dbInstance)
 
-	blockNumbers, err := getDistinctBlockNumbersFromDatabase(collections.CollectionDcl, dbInstance)
+	allBlockNumbers, err := getDistinctBlockNumbersFromDatabase(collections.CollectionDcl, dbInstance)
 	if err != nil {
 		panic(err)
 	}
-	data, err := fetchBlocksTimestamps(blockNumbers)
-	if err != nil {
-		panic(err)
+
+	for blockchain, blockNumbers := range allBlockNumbers {
+		data, err := fetchBlocksTimestamps(blockNumbers, blockchain)
+		if err != nil {
+			panic(err)
+		}
+		str, _ := json.MarshalIndent(data, "", "  ")
+		fmt.Println(string(str))
 	}
-	str, _ := json.MarshalIndent(data, "", "  ")
-	fmt.Println(string(str))
+
 }
