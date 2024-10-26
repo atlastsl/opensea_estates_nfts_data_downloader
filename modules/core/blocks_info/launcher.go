@@ -6,6 +6,7 @@ import (
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 )
@@ -73,8 +74,9 @@ func (x BlocksInfoDataParser) ParseData(worker *multithread.Worker, wg *sync.Wai
 						niMap := nextInput.(map[string]any)
 						mainData := niMap["mainData"]
 						blockNumbers := mainData.([]uint64)
+						blockchain := strings.Split(task, "_")[0]
 
-						err := parseBlockTimestamps(blockNumbers, x.Collection, wg)
+						err := parseBlockTimestamps(blockNumbers, blockchain, x.Collection, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 

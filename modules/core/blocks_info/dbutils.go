@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-func getDistinctBlockNumbersFromDatabase(collection collections.Collection, dbInstance *mongo.Database) ([]uint64, error) {
+func getDistinctBlockNumbersForBlockchain(collection collections.Collection, blockchain string, dbInstance *mongo.Database) ([]uint64, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	matchStage := bson.D{
-		{"$match", bson.D{{"collection", string(collection)}}},
+		{"$match", bson.D{{"collection", string(collection)}, {"blockchain", blockchain}}},
 	}
 	groupStage := bson.D{
 		{"$group", bson.D{
@@ -61,6 +61,28 @@ func getDistinctBlockNumbersFromDatabase(collection collections.Collection, dbIn
 		}
 	}
 	return blockNumbers, nil
+}
+
+func getDistinctBlockNumbersFromDatabase(collection collections.Collection, dbInstance *mongo.Database) (map[string][]uint64, error) {
+	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
+	blockchainRes, err := dbCollection.Distinct(context.Background(), "blockchain", bson.M{"collection": string(collection)})
+	if err != nil {
+		return nil, err
+	}
+	blockchains := helpers.ArrayMap(blockchainRes, func(t any) (bool, string) {
+		return true, t.(string)
+	}, false, "")
+
+	results := make(map[string][]uint64)
+	for _, blockchain := range blockchains {
+		blockNumbers, err := getDistinctBlockNumbersForBlockchain(collection, blockchain, dbInstance)
+		if err != nil {
+			return nil, err
+		}
+		results[blockchain] = blockNumbers
+	}
+
+	return results, nil
 }
 
 func saveBlockTimestampInDatabase(blockInfos []*helpers.EthBlockInfo, collection collections.Collection, dbInstance *mongo.Database) error {

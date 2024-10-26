@@ -66,7 +66,7 @@ func (x OperationMainDataGetter) FetchData(worker *multithread.Worker) {
 	var data any = nil
 	tasks := make([]string, len(blockNumbers))
 	for i, blockNumber := range blockNumbers {
-		tasks[i] = fmt.Sprintf("%s_%d", blockNumber.blockchain, blockNumber.blockNumber)
+		tasks[i] = fmt.Sprintf("%s_%d", blockNumber.Blockchain, blockNumber.BlockNumber)
 	}
 	transactions, err2 := getTransactionInfoByBlockNumbers(blockNumbers, databaseInstance)
 	if err2 != nil {

@@ -58,7 +58,6 @@ func getTransactionHashesFromDatabase(collection collections.Collection, dbInsta
 		if err != nil {
 			return nil, err
 		}
-		defer cursor.Close(context.Background())
 		bResults := make([]*transactionInput, 0)
 		for cursor.Next(context.Background()) {
 			txHash := &transactions_hashes.TransactionHash{}
@@ -73,6 +72,7 @@ func getTransactionHashesFromDatabase(collection collections.Collection, dbInsta
 			}
 			bResults = append(bResults, result)
 		}
+		_ = cursor.Close(context.Background())
 		results[blockchain] = bResults
 	}
 	return results, nil

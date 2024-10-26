@@ -75,7 +75,7 @@ func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.D
 	return cltInfo, nil
 }
 
-func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]*blockNumberInput, error) {
+func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]*BlockNumberInput, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	matchStage := bson.D{
 		{"$match", bson.D{{"collection", collection}}},
@@ -127,7 +127,7 @@ func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]
 	if err != nil {
 		return nil, err
 	}
-	blockNumbers := make([]*blockNumberInput, 0)
+	blockNumbers := make([]*BlockNumberInput, 0)
 	err = json.Unmarshal(tmpStr, &blockNumbers)
 	if err != nil {
 		return nil, err
@@ -181,19 +181,17 @@ func updateTransactionsList(key string, item *TransactionFull, table *map[string
 	(*table)[key] = append((*table)[key], item)
 }
 
-func getTransactionInfoByBlockNumbers(blockNumbers []*blockNumberInput, dbInstance *mongo.Database) (map[string][]*TransactionFull, error) {
+func getTransactionInfoByBlockNumbers(blockNumbers []*BlockNumberInput, dbInstance *mongo.Database) (map[string][]*TransactionFull, error) {
 	txInfoDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionInfo{})
 	txLogsDbTable := database.CollectionInstance(dbInstance, &transactions_infos.TransactionLog{})
 
-	blockchains := make([]string, 0)
 	blockNumbersPerChain := make(map[string][]int)
 	for _, item := range blockNumbers {
-		_, ok := blockNumbersPerChain[item.blockchain]
+		_, ok := blockNumbersPerChain[item.Blockchain]
 		if !ok {
-			blockchains = append(blockchains, item.blockchain)
-			blockNumbersPerChain[item.blockchain] = make([]int, 0)
+			blockNumbersPerChain[item.Blockchain] = make([]int, 0)
 		}
-		blockNumbersPerChain[item.blockchain] = append(blockNumbersPerChain[item.blockchain], item.blockNumber)
+		blockNumbersPerChain[item.Blockchain] = append(blockNumbersPerChain[item.Blockchain], item.BlockNumber)
 	}
 
 	txInfos := make([]*transactions_infos.TransactionInfo, 0)

@@ -37,12 +37,12 @@ func readFlags() (*string, *string, *int, bool) {
 	// go run main.go -x decentraland -t eth_events -n 1
 	// go run main.go -x decentraland -t ops_events -n 1
 	// go run main.go -x decentraland -t movements -n 1
-	// go run main.go -x decentraland -t blocks_info -n 1
 	// go run main.go -x decentraland -t tx_logs -n 1
 
 	// go run main.go -x decentraland -t tiles -n 1
 	// go run main.go -x decentraland -t tiles_distances -n 1
 	// go run main.go -x decentraland -t tx_hashes -n 1
+	// go run main.go -x decentraland -t blocks_info -n 1
 	// go run main.go -x decentraland -t tx_info -n 1
 	// go run main.go -x decentraland -t operations -n 1
 

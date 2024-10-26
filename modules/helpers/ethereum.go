@@ -43,6 +43,7 @@ type EthBlockRangeErrorData struct {
 }
 
 type EthBlockInfo struct {
+	Blockchain     string
 	BlockNumber    int64     `bigquery:"block_number"`
 	BlockTimestamp time.Time `bigquery:"block_timestamp"`
 }

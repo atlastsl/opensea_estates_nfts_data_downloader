@@ -130,7 +130,7 @@ type TransactionFull struct {
 	Logs        []*transactions_infos.TransactionLog
 }
 
-type blockNumberInput struct {
-	blockNumber int
-	blockchain  string
+type BlockNumberInput struct {
+	BlockNumber int    `json:"block_number"`
+	Blockchain  string `json:"blockchain"`
 }

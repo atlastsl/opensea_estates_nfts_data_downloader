@@ -7,25 +7,28 @@ import (
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
 	"errors"
+	"fmt"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"os"
 	"sync"
 )
 
-func fetchBlocksTimestamps(blockNumbers []uint64) ([]*helpers.EthBlockInfo, error) {
+func fetchBlocksTimestamps(blockNumbers []uint64, blockchain string) ([]*helpers.EthBlockInfo, error) {
 	projectId := os.Getenv("ETHEREUM_ETL_PROJECT_ID")
 	credsFile := os.Getenv("BIG_QUERY_CREDENTIALS_FILE")
 	client, err := bigquery.NewClient(context.Background(), projectId, option.WithCredentialsFile(credsFile))
 	if err != nil {
 		return nil, err
 	}
-	query := client.Query(`
+	queryStr := fmt.Sprintf(
+		`
 		SELECT number as block_number, timestamp as block_timestamp
-		FROM bigquery-public-data.crypto_ethereum.blocks
+		FROM bigquery-public-data.crypto_%s.blocks
 		WHERE number IN UNNEST(@block_numbers)
 		ORDER BY block_number ASC
-	`)
+	`, blockchain)
+	query := client.Query(queryStr)
 	blockNumbersInt64 := make([]int64, len(blockNumbers))
 	for i, v := range blockNumbers {
 		blockNumbersInt64[i] = int64(v)
@@ -64,8 +67,8 @@ func saveBlockTimestamps(blockInfos []*helpers.EthBlockInfo, collection collecti
 	return err
 }
 
-func parseBlockTimestamps(blockNumbers []uint64, collection collections.Collection, wg *sync.WaitGroup) error {
-	blockInfos, err := fetchBlocksTimestamps(blockNumbers)
+func parseBlockTimestamps(blockNumbers []uint64, blockchain string, collection collections.Collection, wg *sync.WaitGroup) error {
+	blockInfos, err := fetchBlocksTimestamps(blockNumbers, blockchain)
 	if err != nil {
 		return err
 	}
