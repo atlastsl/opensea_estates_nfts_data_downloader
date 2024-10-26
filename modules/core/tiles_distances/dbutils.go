@@ -12,9 +12,9 @@ import (
 	"slices"
 )
 
-func getMacroFromDatabase(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*MapTMacroAug, error) {
+func getMacroFromDatabase(collection collections.Collection, dbInstance *mongo.Database) ([]*MapTMacroAug, error) {
 	macrosCollection := database.CollectionInstance(dbInstance, &tiles.MapMacro{})
-	find, err := macrosCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection)})
+	find, err := macrosCollection.Find(context.Background(), bson.M{"collection": string(collection)})
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func getMacroFromDatabase(collection collections.Collection, contract string, db
 	}
 
 	tilesCollection := database.CollectionInstance(dbInstance, &tiles.MapTile{})
-	find, err = tilesCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection), "inside": bson.M{"$exists": true, "$ne": nil}})
+	find, err = tilesCollection.Find(context.Background(), bson.M{"collection": string(collection), "inside": bson.M{"$exists": true, "$ne": nil}})
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +69,9 @@ func getMacroFromDatabase(collection collections.Collection, contract string, db
 	return macroList, nil
 }
 
-func getTilesToWorkFromDatabase(collection collections.Collection, contract string, dbInstance *mongo.Database) (map[string]*tiles.MapTile, error) {
+func getTilesToWorkFromDatabase(collection collections.Collection, dbInstance *mongo.Database) (map[string]*tiles.MapTile, error) {
 	tilesCollection := database.CollectionInstance(dbInstance, &tiles.MapTile{})
-	cursor, err := tilesCollection.Find(context.Background(), bson.M{"contract": contract, "collection": string(collection)})
+	cursor, err := tilesCollection.Find(context.Background(), bson.M{"collection": string(collection)})
 	if err != nil {
 		return nil, err
 	}
@@ -87,10 +87,10 @@ func getTilesToWorkFromDatabase(collection collections.Collection, contract stri
 	return tilesMap, nil
 }
 
-func fetchTileFromDatabase(collection collections.Collection, contract, coords string, dbInstance *mongo.Database) (*tiles.MapTile, error) {
+func fetchTileFromDatabase(collection collections.Collection, coords string, dbInstance *mongo.Database) (*tiles.MapTile, error) {
 	tile := &tiles.MapTile{}
 	tilesCollection := database.CollectionInstance(dbInstance, tile)
-	err := tilesCollection.FirstWithCtx(context.Background(), bson.M{"contract": contract, "collection": string(collection), "coords": coords}, tile)
+	err := tilesCollection.FirstWithCtx(context.Background(), bson.M{"collection": string(collection), "coords": coords}, tile)
 	if err != nil {
 		if !errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, err

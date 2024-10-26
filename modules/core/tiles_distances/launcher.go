@@ -6,7 +6,6 @@ import (
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
 	"fmt"
-	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -34,7 +33,7 @@ func (x TilesDistanceAddDataGetter) FetchData(worker *multithread.Worker) {
 
 	worker.LoggingExtra("Fetching Macro data from database...")
 	if x.Collection == collections.CollectionDcl {
-		data, err = getMacroFromDatabase(x.Collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), databaseInstance)
+		data, err = getMacroFromDatabase(x.Collection, databaseInstance)
 	}
 	worker.LoggingExtra("Macro data fetched from database. Publishing data...")
 
@@ -62,7 +61,7 @@ func (x TilesDistanceMainDataGetter) FetchData(worker *multithread.Worker) {
 
 	worker.LoggingExtra("Fetching Tiles Ids from database...")
 	if x.Collection == collections.CollectionDcl {
-		data, err = getTilesToWorkFromDatabase(x.Collection, os.Getenv("DECENTRALAND_LAND_CONTRACT"), databaseInstance)
+		data, err = getTilesToWorkFromDatabase(x.Collection, databaseInstance)
 	}
 	worker.LoggingExtra("Tiles Ids fetched from database. Publishing data...")
 
