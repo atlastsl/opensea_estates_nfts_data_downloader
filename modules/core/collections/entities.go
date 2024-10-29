@@ -75,6 +75,7 @@ type Currency struct {
 	Symbols          string `bson:"symbols,omitempty"`
 	PriceMap         string `bson:"price_map,omitempty"`
 	PriceSlug        string `bson:"price_slug,omitempty"`
+	MainCurrency     bool   `bson:"main_currency"`
 }
 
 type CurrencyPrice struct {

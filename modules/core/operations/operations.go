@@ -43,6 +43,20 @@ func getCurrencyPrice(currency string, date time.Time, allPrices map[string][]*c
 	return price
 }
 
+func getCurrency(currencyAddress, blockchain string, currencies map[string]*collections.Currency) (*collections.Currency, bool) {
+	currency, ccyExists := currencies[currencyAddress]
+	if !ccyExists {
+		for _, ccy := range currencies {
+			if ccy.Blockchain == blockchain && ccy.MainCurrency {
+				currency = ccy
+				ccyExists = true
+				break
+			}
+		}
+	}
+	return currency, ccyExists
+}
+
 func getTransferMoneyOperationValues(transferMoneyLogsInfo []*TransactionLogInfo, assetsReceivers []string, date time.Time, nbAssetsTransacted int, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) []OperationValue {
 	currenciesAddresses := make([]string, 0)
 	for _, logInfo := range transferMoneyLogsInfo {
@@ -52,7 +66,7 @@ func getTransferMoneyOperationValues(transferMoneyLogsInfo []*TransactionLogInfo
 	}
 	opValues := make([]OperationValue, 0)
 	for _, currencyAddress := range currenciesAddresses {
-		currency, ccyExists := currencies[currencyAddress]
+		currency, ccyExists := getCurrency(currencyAddress, "-", currencies)
 		if ccyExists {
 			price := getCurrencyPrice(currency.Symbols, date, allPrices)
 			ccyLogs := helpers.ArrayFilter(transferMoneyLogsInfo, func(logInfo *TransactionLogInfo) bool {
@@ -95,8 +109,8 @@ func getTransferMoneyOperationValues(transferMoneyLogsInfo []*TransactionLogInfo
 	return opValues
 }
 
-func getTransactionValueOperationValue(txInfo *transactions_infos.TransactionInfo, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) *OperationValue {
-	currency, ccyExists := currencies[cltInfo.Currency]
+func getTransactionValueOperationValue(txInfo *transactions_infos.TransactionInfo, nbAssetsTransacted int, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) *OperationValue {
+	currency, ccyExists := getCurrency("-", txInfo.Blockchain, currencies)
 	if ccyExists {
 		price := getCurrencyPrice(currency.Symbols, txInfo.BlockTimestamp, allPrices)
 		bgCcyOpValue := new(big.Float)
@@ -120,22 +134,22 @@ func getTransactionValueOperationValue(txInfo *transactions_infos.TransactionInf
 	return nil
 }
 
-func getTransactionOperationValues(transaction *TransactionFull, transferMoneyLogsInfo []*TransactionLogInfo, assetsReceivers []string, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) []OperationValue {
+func getTransactionOperationValues(transaction *TransactionFull, transferMoneyLogsInfo []*TransactionLogInfo, assetsReceivers []string, nbAssetsTransacted int, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) []OperationValue {
 	opValues := make([]OperationValue, 0)
 	trMoneyOpValues := getTransferMoneyOperationValues(transferMoneyLogsInfo, assetsReceivers, transaction.Transaction.BlockTimestamp, nbAssetsTransacted, currencies, allPrices)
 	if len(trMoneyOpValues) > 0 {
 		opValues = append(opValues, trMoneyOpValues...)
 	}
-	mainCcyOpValue := getTransactionValueOperationValue(transaction.Transaction, nbAssetsTransacted, cltInfo, currencies, allPrices)
+	mainCcyOpValue := getTransactionValueOperationValue(transaction.Transaction, nbAssetsTransacted, currencies, allPrices)
 	if mainCcyOpValue != nil {
 		opValues = append(opValues, *mainCcyOpValue)
 	}
 	return opValues
 }
 
-func getTransactionFeesOperationValue(txInfo *transactions_infos.TransactionInfo, nbAssetsTransacted int, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) []OperationValue {
+func getTransactionFeesOperationValue(txInfo *transactions_infos.TransactionInfo, nbAssetsTransacted int, currencies map[string]*collections.Currency, allPrices map[string][]*collections.CurrencyPrice) []OperationValue {
 	opValues := make([]OperationValue, 0)
-	currency, ccyExists := currencies[cltInfo.Currency]
+	currency, ccyExists := getCurrency("-", txInfo.Blockchain, currencies)
 	if ccyExists {
 		price := getCurrencyPrice(currency.Symbols, txInfo.BlockTimestamp, allPrices)
 		gasUsed, gasPrice := new(big.Float), new(big.Float)
@@ -211,8 +225,8 @@ func convertTransactionInfoToOperations(transaction *TransactionFull, txLogsInfo
 	nbAssetsTransacted := getNumberOfAssetsTransacted(txLogsInfos, assetsReceivers)
 
 	transferMoneyLogs := getTransferMoneyLogsOnAssetsReceivers(txLogsInfos, assetsReceivers, currencies)
-	amount := getTransactionOperationValues(transaction, transferMoneyLogs, assetsReceivers, nbAssetsTransacted, cltInfo, currencies, allPrices)
-	fees := getTransactionFeesOperationValue(transaction.Transaction, nbAssetsTransacted, cltInfo, currencies, allPrices)
+	amount := getTransactionOperationValues(transaction, transferMoneyLogs, assetsReceivers, nbAssetsTransacted, currencies, allPrices)
+	fees := getTransactionFeesOperationValue(transaction.Transaction, nbAssetsTransacted, currencies, allPrices)
 
 	operations := make([]*Operation, 0)
 	for _, transferLog := range colAssetsTransfersLogs {
