@@ -10,12 +10,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 )
 
 func getTopicBoundariesForLogs(collection collections.Collection, dbInstance *mongo.Database) (map[string]*collections.CollectionInfoLogTopic, error) {
-	if collection == collections.CollectionDcl {
+	if slices.Contains(collections.Collections, collection) {
 		return getTopicBoundariesForLogsFromDatabase(collection, dbInstance)
 	}
 	return make(map[string]*collections.CollectionInfoLogTopic), nil

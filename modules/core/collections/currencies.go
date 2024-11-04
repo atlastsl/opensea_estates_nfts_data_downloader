@@ -12,7 +12,7 @@ import (
 )
 
 var currencies = []Currency{
-	{
+	/*{
 		Blockchain:   EthereumBlockchain,
 		Contract:     "0x0000000000000000000000000000000000000000",
 		Decimals:     18,
@@ -327,6 +327,15 @@ var currencies = []Currency{
 		Symbols:      "LP",
 		Name:         "Decentraland Bounty",
 		PriceSlug:    "",
+		MainCurrency: false,
+	},*/
+	{
+		Blockchain:   EthereumBlockchain,
+		Contract:     "0xdf801468a808a32656d2ed2d2d80b72a129739f4",
+		Decimals:     18,
+		Symbols:      "CUBE",
+		Name:         "Somnium Space Cube",
+		PriceSlug:    "somnium-space-cubes",
 		MainCurrency: false,
 	},
 }

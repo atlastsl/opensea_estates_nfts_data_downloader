@@ -14,6 +14,11 @@ const (
 	EthereumBlockchain            = "ethereum"
 	PolygonBlockchain             = "polygon"
 	CollectionDcl      Collection = "decentraland"
+	CollectionSmn      Collection = "somnium-space"
+)
+
+var (
+	Collections = []Collection{CollectionDcl, CollectionSmn}
 )
 
 var DecentralandCollectionInfo = &CollectionInfo{
@@ -58,6 +63,34 @@ var DecentralandCollectionInfo = &CollectionInfo{
 			Name:       "RemoveLandFromEstate",
 			Hash:       "0x7932eb5ab0d4d4d172776074ee15d13d708465ff5476902ed15a4965434fcab1",
 			Contracts:  []string{"0x959e104e1a4db6317fa58f8295f586e1a978c297"},
+			EndBlock:   0,
+		},
+	},
+}
+
+var SomniumSpaceCollectionInfo = &CollectionInfo{
+	Name:       string(CollectionSmn),
+	Blockchain: []string{EthereumBlockchain},
+	Assets: []CollectionInfoAsset{
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "parcel",
+			Contract:   "0x913ae503153d9A335398D0785Ba60A2d63dDB4e2",
+		},
+	},
+	LogTopics: []CollectionInfoLogTopic{
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "TransferAsset",
+			Hash:       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+			Contracts:  []string{"0x913ae503153d9A335398D0785Ba60A2d63dDB4e2"},
+			EndBlock:   0,
+		},
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "TransferToken",
+			Hash:       "0xd5c97f2e041b2046be3b4337472f05720760a198f4d7d84980b7155eec7cca6f",
+			Contracts:  []string{"0x913ae503153d9A335398D0785Ba60A2d63dDB4e2"},
 			EndBlock:   0,
 		},
 	},
