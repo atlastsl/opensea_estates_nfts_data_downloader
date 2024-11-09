@@ -14,3 +14,11 @@ type TransactionHash struct {
 	BlockHash        string    `bson:"block_hash,omitempty"`
 	BlockTimestamp   time.Time `bson:"block_timestamp,omitempty"`
 }
+
+type SpecificBnItem struct {
+	Start uint64 `json:"start"`
+	End   uint64 `json:"end"`
+	Done  bool   `json:"done"`
+}
+
+type SpecificBnDict map[string]map[string][]SpecificBnItem

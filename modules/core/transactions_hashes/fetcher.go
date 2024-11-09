@@ -15,11 +15,55 @@ import (
 	"time"
 )
 
+var specificBnDict SpecificBnDict
+
 func getTopicBoundariesForLogs(collection collections.Collection, dbInstance *mongo.Database) (map[string]*collections.CollectionInfoLogTopic, error) {
 	if slices.Contains(collections.Collections, collection) {
 		return getTopicBoundariesForLogsFromDatabase(collection, dbInstance)
 	}
 	return make(map[string]*collections.CollectionInfoLogTopic), nil
+}
+
+func getSpecificBnDict() (*SpecificBnDict, error) {
+	if specificBnDict == nil {
+		specificBnDictJson, err := os.ReadFile("./files/specific_bn_dict.json")
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(specificBnDictJson, &specificBnDict)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &specificBnDict, nil
+}
+
+func getStartBnInterval(collection collections.Collection, logTopicInterval *collections.CollectionInfoLogTopic, latestFetchedBlockNumber uint64) []uint64 {
+	defaultStartBnInterval := []uint64{latestFetchedBlockNumber + 1, 0}
+	if logTopicInterval.Blockchain == collections.PolygonBlockchain {
+		if collection == collections.CollectionSnd {
+			dict, err := getSpecificBnDict()
+			if err != nil {
+				return defaultStartBnInterval
+			}
+			blockchainDict, ok := (*dict)[logTopicInterval.Blockchain]
+			if !ok {
+				return defaultStartBnInterval
+			}
+			blockchainColDict, ok := blockchainDict[string(collection)]
+			if !ok {
+				return defaultStartBnInterval
+			}
+			for i, item := range blockchainColDict {
+				if !item.Done {
+					(*dict)[logTopicInterval.Blockchain][string(collection)][i].Done = true
+					return []uint64{item.Start, item.End}
+				}
+			}
+			return []uint64{1, 1}
+		}
+	}
+	return defaultStartBnInterval
 }
 
 func getLogsBuildParams(addresses []string, topic string, bnInterval []uint64) ([]byte, error) {
@@ -113,9 +157,10 @@ func handleEthEventsResponse(logTopicInfo *collections.CollectionInfoLogTopic, r
 	}
 }
 
-func getEthEventsLogsOfTopic(logTopicInfo *collections.CollectionInfoLogTopic, latestFetchedBlockNumber uint64) ([]*helpers.EthEventLog, uint64, error) {
+func getEthEventsLogsOfTopic(collection collections.Collection, logTopicInfo *collections.CollectionInfoLogTopic, latestFetchedBlockNumber uint64) ([]*helpers.EthEventLog, uint64, error) {
+	startBnInterval := getStartBnInterval(collection, logTopicInfo, latestFetchedBlockNumber)
 
-	response, err := getEthEventsLogsReq(logTopicInfo, []uint64{latestFetchedBlockNumber + 1, 0})
+	response, err := getEthEventsLogsReq(logTopicInfo, startBnInterval)
 	if err != nil {
 		return nil, 0, err
 	}

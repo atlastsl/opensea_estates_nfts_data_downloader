@@ -77,7 +77,7 @@ func (x TxHashesMainDataGetter) FetchData(worker *multithread.Worker) {
 
 			task := fmt.Sprintf("%s-%d", currentTopic, currentBN)
 
-			response, nextLFBN, err2 := getEthEventsLogsOfTopic(currentTopicInfo, currentBN)
+			response, nextLFBN, err2 := getEthEventsLogsOfTopic(x.Collection, currentTopicInfo, currentBN)
 			currentTopicInfo.StartBlock = nextLFBN
 			mustSaveTopicInfo = true
 			if err2 != nil {
