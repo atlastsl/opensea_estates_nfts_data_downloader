@@ -19,10 +19,8 @@ func getTopicBoundariesForLogsFromDatabase(collection collections.Collection, db
 	}
 	result := make(map[string]*collections.CollectionInfoLogTopic)
 	for _, topic := range cltInfo.LogTopics {
-		if topic.Blockchain != "ethereum" {
-			topicName := fmt.Sprintf("%s-%s", topic.Blockchain, topic.Hash)
-			result[topicName] = &topic
-		}
+		topicName := fmt.Sprintf("%s-%s", topic.Blockchain, topic.Hash)
+		result[topicName] = &topic
 	}
 	return result, nil
 }
