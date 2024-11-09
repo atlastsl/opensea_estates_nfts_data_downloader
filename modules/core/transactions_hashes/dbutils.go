@@ -4,6 +4,7 @@ import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"time"
@@ -18,7 +19,8 @@ func getTopicBoundariesForLogsFromDatabase(collection collections.Collection, db
 	}
 	result := make(map[string]*collections.CollectionInfoLogTopic)
 	for _, topic := range cltInfo.LogTopics {
-		result[topic.Hash] = &topic
+		topicName := fmt.Sprintf("%s-%s", topic.Blockchain, topic.Hash)
+		result[topicName] = &topic
 	}
 	return result, nil
 }
