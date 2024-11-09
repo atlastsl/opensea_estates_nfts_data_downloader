@@ -15,10 +15,12 @@ const (
 	PolygonBlockchain             = "polygon"
 	CollectionDcl      Collection = "decentraland"
 	CollectionSmn      Collection = "somnium-space"
+	CollectionVxl      Collection = "crypto-voxels"
+	CollectionSnd      Collection = "the-sandbox"
 )
 
 var (
-	Collections = []Collection{CollectionDcl, CollectionSmn}
+	Collections = []Collection{CollectionDcl, CollectionSmn, CollectionVxl, CollectionSnd}
 )
 
 var DecentralandCollectionInfo = &CollectionInfo{
@@ -46,7 +48,7 @@ var DecentralandCollectionInfo = &CollectionInfo{
 		},
 		{
 			Blockchain: EthereumBlockchain,
-			Name:       "TransferToken",
+			Name:       "TransferAsset",
 			Hash:       "0xd5c97f2e041b2046be3b4337472f05720760a198f4d7d84980b7155eec7cca6f",
 			Contracts:  []string{"0xf87e31492faf9a91b02ee0deaad50d51d56d5d4d", "0x959e104e1a4db6317fa58f8295f586e1a978c297"},
 			EndBlock:   0,
@@ -88,9 +90,77 @@ var SomniumSpaceCollectionInfo = &CollectionInfo{
 		},
 		{
 			Blockchain: EthereumBlockchain,
-			Name:       "TransferToken",
+			Name:       "TransferAsset",
 			Hash:       "0xd5c97f2e041b2046be3b4337472f05720760a198f4d7d84980b7155eec7cca6f",
 			Contracts:  []string{"0x913ae503153d9A335398D0785Ba60A2d63dDB4e2"},
+			EndBlock:   0,
+		},
+	},
+}
+
+var CryptoVoxelsCollectionInfo = &CollectionInfo{
+	Name:       string(CollectionVxl),
+	Blockchain: []string{EthereumBlockchain},
+	Assets: []CollectionInfoAsset{
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "land",
+			Contract:   "0x79986aF15539de2db9A5086382daEdA917A9CF0C",
+		},
+	},
+	LogTopics: []CollectionInfoLogTopic{
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "TransferAsset",
+			Hash:       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+			Contracts:  []string{"0x79986aF15539de2db9A5086382daEdA917A9CF0C"},
+			EndBlock:   0,
+		},
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "TransferAsset",
+			Hash:       "0xd5c97f2e041b2046be3b4337472f05720760a198f4d7d84980b7155eec7cca6f",
+			Contracts:  []string{"0x79986aF15539de2db9A5086382daEdA917A9CF0C"},
+			EndBlock:   0,
+		},
+	},
+}
+
+var TheSandboxCollectionInfo = &CollectionInfo{
+	Name:       string(CollectionSnd),
+	Blockchain: []string{EthereumBlockchain, PolygonBlockchain},
+	Assets: []CollectionInfoAsset{
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "land",
+			Contract:   "0x5cc5b05a8a13e3fbdb0bb9fccd98d38e50f90c38",
+		},
+		{
+			Blockchain: PolygonBlockchain,
+			Name:       "land",
+			Contract:   "0x9d305a42A3975Ee4c1C57555BeD5919889DCE63F",
+		},
+	},
+	LogTopics: []CollectionInfoLogTopic{
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "TransferAsset",
+			Hash:       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+			Contracts:  []string{"0x5cc5b05a8a13e3fbdb0bb9fccd98d38e50f90c38"},
+			EndBlock:   0,
+		},
+		{
+			Blockchain: EthereumBlockchain,
+			Name:       "TransferAsset",
+			Hash:       "0xd5c97f2e041b2046be3b4337472f05720760a198f4d7d84980b7155eec7cca6f",
+			Contracts:  []string{"0x5cc5b05a8a13e3fbdb0bb9fccd98d38e50f90c38"},
+			EndBlock:   0,
+		},
+		{
+			Blockchain: PolygonBlockchain,
+			Name:       "TransferAsset",
+			Hash:       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+			Contracts:  []string{"0x9d305a42A3975Ee4c1C57555BeD5919889DCE63F"},
 			EndBlock:   0,
 		},
 	},

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
 	"github.com/joho/godotenv"
 )
 
@@ -10,5 +9,5 @@ func main0() {
 	if err != nil {
 		panic(err)
 	}
-	collections.SaveInfo(collections.DecentralandCollectionInfo)
+	//collections.SaveInfo(collections.DecentralandCollectionInfo)
 }
