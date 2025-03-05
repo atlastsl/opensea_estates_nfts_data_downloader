@@ -28,6 +28,14 @@ type OperationValue struct {
 	ValueUsd      float64 `bson:"value_usd,omitempty"`
 }
 
+type MarketDataInfo struct {
+	Currency  string  `bson:"currency,omitempty"`
+	Price     float64 `bson:"price,omitempty"`
+	Change24h float64 `bson:"change_24h,omitempty"`
+	Volume24h float64 `bson:"volume_24h,omitempty"`
+	MarketCap float64 `bson:"market_cap,omitempty"`
+}
+
 type Operation struct {
 	mgm.DefaultModel `bson:",inline"`
 	Collection       string             `bson:"collection,omitempty"`
@@ -45,6 +53,7 @@ type Operation struct {
 	Recipient        string             `bson:"recipient,omitempty"`
 	Amount           []OperationValue   `bson:"amount"`
 	Fees             []OperationValue   `bson:"fees"`
+	MarketInfo       MarketDataInfo     `bson:"market_info"`
 }
 
 const (
@@ -67,6 +76,7 @@ type Asset struct {
 	TokenStandard    string     `bson:"token_standard,omitempty"`
 	Name             string     `bson:"name,omitempty"`
 	Description      string     `bson:"description,omitempty"`
+	Blockchain       string     `bson:"blockchain,omitempty"`
 	Type             string     `bson:"type,omitempty"`
 	X                int        `bson:"x,omitempty"`
 	Y                int        `bson:"y,omitempty"`
@@ -87,6 +97,7 @@ type AssetMetadata struct {
 	Value            string               `bson:"value,omitempty"`
 	MacroRef         primitive.ObjectID   `bson:"macro,omitempty"`
 	MacroType        string               `bson:"macro_type,omitempty"`
+	MacroSubtype     string               `bson:"macro_subtype,omitempty"`
 	Date             time.Time            `bson:"date,omitempty"`
 	OperationsRef    []primitive.ObjectID `bson:"operations,omitempty"`
 }

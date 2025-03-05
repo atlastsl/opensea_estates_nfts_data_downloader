@@ -4,7 +4,7 @@ import "github.com/mitchellh/mapstructure"
 
 func ConvertMapToStruct(m map[string]any, target interface{}) error {
 	config := &mapstructure.DecoderConfig{
-		ErrorUnused: true,
+		ErrorUnused: false,
 		Result:      target,
 	}
 	decoder, e1 := mapstructure.NewDecoder(config)

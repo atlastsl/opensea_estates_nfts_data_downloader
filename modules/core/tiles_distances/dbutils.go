@@ -7,6 +7,7 @@ import (
 	"decentraland_data_downloader/modules/core/tiles"
 	"decentraland_data_downloader/modules/helpers"
 	"errors"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"slices"
@@ -27,10 +28,13 @@ func getMacroFromDatabase(collection collections.Collection, dbInstance *mongo.D
 	if err != nil {
 		return nil, err
 	}
-	macroTypes := make([]string, 0)
+	macroListIds := make([]string, 0)
+	macroListIdsM := make([][]string, 0)
 	for _, macro := range macros {
-		if !slices.Contains(macroTypes, macro.Type) {
-			macroTypes = append(macroTypes, macro.Type)
+		listId := fmt.Sprintf("%s___%s", helpers.CodeFlattenString(macro.Type), helpers.CodeFlattenString(macro.Subtype))
+		if !slices.Contains(macroListIds, listId) {
+			macroListIds = append(macroListIds, listId)
+			macroListIdsM = append(macroListIdsM, []string{macro.Type, macro.Subtype})
 		}
 	}
 
@@ -48,10 +52,12 @@ func getMacroFromDatabase(collection collections.Collection, dbInstance *mongo.D
 	if err != nil {
 		return nil, err
 	}
-	var macroList = make([]*MapTMacroAug, len(macroTypes))
-	for i, macroType := range macroTypes {
+
+	var macroList = make([]*MapTMacroAug, len(macroListIdsM))
+	for i, macroListId := range macroListIdsM {
+		macroType, macroSubtype := macroListId[0], macroListId[1]
 		tMacros := helpers.ArrayFilter(macros, func(macro tiles.MapMacro) bool {
-			return macro.Type == macroType
+			return macro.Type == macroType && macro.Subtype == macroSubtype
 		})
 		var tMacroList = make([]*MapMacroAug, 0)
 		for _, tMacro := range tMacros {
@@ -63,7 +69,7 @@ func getMacroFromDatabase(collection collections.Collection, dbInstance *mongo.D
 			}, true, "")
 			tMacroList = append(tMacroList, &MapMacroAug{Macro: &tMacro, Tiles: tilesIds})
 		}
-		macroList[i] = &MapTMacroAug{MacroType: macroType, MacrosAug: tMacroList}
+		macroList[i] = &MapTMacroAug{MacroType: macroType, MacroSubtype: macroSubtype, MacrosAug: tMacroList}
 	}
 
 	return macroList, nil

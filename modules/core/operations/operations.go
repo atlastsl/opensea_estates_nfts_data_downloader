@@ -43,6 +43,29 @@ func getCurrencyPrice(currency string, date time.Time, allPrices map[string][]*c
 	return price
 }
 
+func getFullCurrencyPrice(currency string, date time.Time, allPrices map[string][]*collections.CurrencyPrice) *collections.CurrencyPrice {
+	filteredPrices, hasCp := allPrices[currency]
+	if hasCp && filteredPrices != nil && len(filteredPrices) > 0 {
+		if date.UnixMilli() < filteredPrices[0].Start.UnixMilli() {
+			return filteredPrices[0]
+		} else if date.UnixMilli() >= filteredPrices[len(filteredPrices)-1].End.UnixMilli() {
+			return filteredPrices[len(filteredPrices)-1]
+		} else {
+			bestPriceInstance := new(collections.CurrencyPrice)
+			for _, priceItem := range filteredPrices {
+				if priceItem.Start.UnixMilli() <= date.UnixMilli() && date.UnixMilli() < priceItem.End.UnixMilli() {
+					bestPriceInstance = priceItem
+					break
+				}
+			}
+			if bestPriceInstance != nil {
+				return bestPriceInstance
+			}
+		}
+	}
+	return nil
+}
+
 func getCurrency(currencyAddress, blockchain string, currencies map[string]*collections.Currency) (*collections.Currency, bool) {
 	currency, ccyExists := currencies[currencyAddress]
 	if !ccyExists {
@@ -175,6 +198,47 @@ func getTransactionFeesOperationValue(txInfo *transactions_infos.TransactionInfo
 	return opValues
 }
 
+func getTransactionMarketInfo(txInfo *transactions_infos.TransactionInfo, cltInfo *collections.CollectionInfo, allPrices map[string][]*collections.CurrencyPrice) *MarketDataInfo {
+	currencySymbols := ""
+	switch cltInfo.Name {
+	case "decentraland":
+		currencySymbols = "MANA"
+		break
+	case "somnium-space":
+		currencySymbols = "CUBE"
+		break
+	case "crypto-voxels":
+		currencySymbols = ""
+		break
+	case "the-sandbox":
+		currencySymbols = "SAND"
+		break
+	}
+	mdi := &MarketDataInfo{}
+	if currencySymbols != "" {
+		yesterday := time.UnixMilli(txInfo.BlockTimestamp.UnixMilli()).AddDate(0, 0, -1)
+		bYesterday := time.UnixMilli(yesterday.UnixMilli()).AddDate(0, 0, -1)
+		ytdPrice := getFullCurrencyPrice(currencySymbols, yesterday, allPrices)
+		bytdPrice := getFullCurrencyPrice(currencySymbols, bYesterday, allPrices)
+		mdi.Price = getCurrencyPrice(currencySymbols, txInfo.BlockTimestamp, allPrices)
+		if ytdPrice != nil {
+			tmp := new(big.Float).SetFloat64(0.0)
+			if bytdPrice != nil {
+				tmp = tmp.Sub(new(big.Float).SetFloat64(ytdPrice.Close), new(big.Float).SetFloat64(bytdPrice.Close))
+				tmp = new(big.Float).Quo(tmp, new(big.Float).SetFloat64(bytdPrice.Close))
+			} else {
+				tmp = tmp.Sub(new(big.Float).SetFloat64(ytdPrice.Close), new(big.Float).SetFloat64(ytdPrice.Open))
+				tmp = new(big.Float).Quo(tmp, new(big.Float).SetFloat64(ytdPrice.Open))
+			}
+			mdi.Change24h, _ = tmp.Float64()
+			mdi.Currency = currencySymbols
+			mdi.MarketCap = ytdPrice.MarketCap
+			mdi.Volume24h = ytdPrice.Volume
+		}
+	}
+	return mdi
+}
+
 func getOperationTypes(amount []OperationValue, sender string) (string, string) {
 	operationType, transactionType := "", ""
 	if len(amount) > 0 {
@@ -190,7 +254,7 @@ func getOperationTypes(amount []OperationValue, sender string) (string, string) 
 	return operationType, transactionType
 }
 
-func convertTransferLogToOperation(transferLogInfo *TransactionLogInfo, transactionInfo *transactions_infos.TransactionInfo, amount, fees []OperationValue, cltInfo *collections.CollectionInfo, allAssets []*Asset) (*Operation, error) {
+func convertTransferLogToOperation(transferLogInfo *TransactionLogInfo, transactionInfo *transactions_infos.TransactionInfo, amount, fees []OperationValue, marketDataInfo *MarketDataInfo, cltInfo *collections.CollectionInfo, allAssets []*Asset) (*Operation, error) {
 	asset := safeGetAssetForParser(cltInfo.Name, transferLogInfo.TransactionLog.Address, transferLogInfo.Asset, allAssets)
 	if asset == nil {
 		return nil, assetNotFoundError
@@ -216,6 +280,7 @@ func convertTransferLogToOperation(transferLogInfo *TransactionLogInfo, transact
 	operation.Recipient = recipient
 	operation.Amount = amount
 	operation.Fees = fees
+	operation.MarketInfo = *marketDataInfo
 	return operation, nil
 }
 
@@ -227,10 +292,11 @@ func convertTransactionInfoToOperations(transaction *TransactionFull, txLogsInfo
 	transferMoneyLogs := getTransferMoneyLogsOnAssetsReceivers(txLogsInfos, assetsReceivers, currencies)
 	amount := getTransactionOperationValues(transaction, transferMoneyLogs, assetsReceivers, nbAssetsTransacted, currencies, allPrices)
 	fees := getTransactionFeesOperationValue(transaction.Transaction, nbAssetsTransacted, currencies, allPrices)
+	marketDataInfo := getTransactionMarketInfo(transaction.Transaction, cltInfo, allPrices)
 
 	operations := make([]*Operation, 0)
 	for _, transferLog := range colAssetsTransfersLogs {
-		operation, err := convertTransferLogToOperation(transferLog, transaction.Transaction, amount, fees, cltInfo, allAssets)
+		operation, err := convertTransferLogToOperation(transferLog, transaction.Transaction, amount, fees, marketDataInfo, cltInfo, allAssets)
 		if err != nil {
 			return nil, err
 		}

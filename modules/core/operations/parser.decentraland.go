@@ -134,24 +134,36 @@ func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *
 	return
 }
 
-func dclGetEstateMinDistance(allDistances []*tiles_distances.MapTileMacroDistance, macroType string) *tiles_distances.MapTileMacroDistance {
-	result := new(tiles_distances.MapTileMacroDistance)
-	result.MacroType = macroType
+func dclGetEstateMinDistances(allDistances []*tiles_distances.MapTileMacroDistance, macroType string) []*tiles_distances.MapTileMacroDistance {
+	results := make([]*tiles_distances.MapTileMacroDistance, 0)
 	if allDistances != nil && len(allDistances) > 0 {
-		mtDistances := helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
-			return distance.MacroType == macroType
-		})
-		if len(mtDistances) > 0 {
-			minDistance := math.MaxInt
-			for _, distance := range mtDistances {
-				if distance.ManDistance < minDistance {
-					result = distance
-					minDistance = distance.ManDistance
+		macroSubtypes := helpers.ArrayMap(allDistances, func(t *tiles_distances.MapTileMacroDistance) (bool, string) {
+			return true, t.MacroSubtype
+		}, true, "")
+		if len(macroSubtypes) > 0 {
+			for _, macroSubtype := range macroSubtypes {
+				mtDistances := helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
+					return distance.MacroType == macroType && distance.MacroSubtype == macroSubtype
+				})
+				if len(mtDistances) > 0 {
+					minDistance := math.MaxInt
+					result := new(tiles_distances.MapTileMacroDistance)
+					found := false
+					for _, distance := range mtDistances {
+						if distance.ManDistance < minDistance {
+							found = true
+							result = distance
+							minDistance = distance.ManDistance
+						}
+					}
+					if found {
+						results = append(results, result)
+					}
 				}
 			}
 		}
 	}
-	return result
+	return results
 }
 
 func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*Asset, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, allDistances []*tiles_distances.MapTileMacroDistance, dbInstance *mongo.Database) ([]*AssetMetadata, error) {
@@ -248,26 +260,29 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 			macroTypes := []string{"district", "plaza", "road"}
 			// Get minimal distance for all macro types
 			for _, macroType := range macroTypes {
-				distance := dclGetEstateMinDistance(filteredDistances, macroType)
-				if distance != nil {
-					newDistanceMtd := &AssetMetadata{
-						Collection:    asset.Collection,
-						AssetRef:      asset.ID,
-						AssetContract: asset.Contract,
-						AssetId:       asset.AssetId,
-						Category:      MetadataTypeDistance,
-						Name:          DistanceMetadataName(distance),
-						DisplayName:   DistanceMetadataDisplayName(distance),
-						DataType:      MetadataDataTypeInteger,
-						Value:         strconv.FormatInt(int64(distance.ManDistance), 10),
-						MacroType:     distance.MacroType,
-						MacroRef:      distance.MacroRef,
-						Date:          blockTimestamp,
-						OperationsRef: updates.operations,
+				distances := dclGetEstateMinDistances(filteredDistances, macroType)
+				for _, distance := range distances {
+					if distance != nil {
+						newDistanceMtd := &AssetMetadata{
+							Collection:    asset.Collection,
+							AssetRef:      asset.ID,
+							AssetContract: asset.Contract,
+							AssetId:       asset.AssetId,
+							Category:      MetadataTypeDistance,
+							Name:          DistanceMetadataName(distance),
+							DisplayName:   DistanceMetadataDisplayName(distance),
+							DataType:      MetadataDataTypeInteger,
+							Value:         strconv.FormatInt(int64(distance.ManDistance), 10),
+							MacroType:     distance.MacroType,
+							MacroSubtype:  distance.MacroSubtype,
+							MacroRef:      distance.MacroRef,
+							Date:          blockTimestamp,
+							OperationsRef: updates.operations,
+						}
+						newDistanceMtd.CreatedAt = time.Now()
+						newDistanceMtd.UpdatedAt = time.Now()
+						metadataList = append(metadataList, newDistanceMtd)
 					}
-					newDistanceMtd.CreatedAt = time.Now()
-					newDistanceMtd.UpdatedAt = time.Now()
-					metadataList = append(metadataList, newDistanceMtd)
 				}
 			}
 

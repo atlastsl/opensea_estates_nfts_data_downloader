@@ -46,13 +46,14 @@ func dclCalculateTileDistances(addData, mainData any, dbInstance *mongo.Database
 				}
 			}
 			distance := &MapTileMacroDistance{
-				TileSlug:    tiles.GetTileSlug(tile),
-				TileRef:     tile.ID,
-				MacroSlug:   minMacro.Slug,
-				MacroRef:    minMacro.ID,
-				MacroType:   minMacro.Type,
-				EucDistance: eucDistance,
-				ManDistance: manDistance,
+				TileSlug:     tiles.GetTileSlug(tile),
+				TileRef:      tile.ID,
+				MacroSlug:    minMacro.Slug,
+				MacroRef:     minMacro.ID,
+				MacroType:    minMacro.Type,
+				MacroSubtype: minMacro.Subtype,
+				EucDistance:  eucDistance,
+				ManDistance:  manDistance,
 			}
 			distances = append(distances, distance)
 		}

@@ -13,6 +13,7 @@ type MapTileMacroDistance struct {
 	MacroSlug        string             `bson:"macro_slug,omitempty"`
 	MacroRef         primitive.ObjectID `bson:"macro_ref,omitempty"`
 	MacroType        string             `bson:"macro_type,omitempty"`
+	MacroSubtype     string             `bson:"macro_subtype,omitempty"`
 	EucDistance      float64            `bson:"euc_distance"`
 	ManDistance      int                `bson:"man_distance"`
 }
@@ -23,6 +24,7 @@ type MapMacroAug struct {
 }
 
 type MapTMacroAug struct {
-	MacroType string
-	MacrosAug []*MapMacroAug
+	MacroType    string
+	MacroSubtype string
+	MacrosAug    []*MapMacroAug
 }

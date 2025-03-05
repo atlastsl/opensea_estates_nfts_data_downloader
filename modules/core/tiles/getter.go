@@ -1,10 +1,29 @@
 package tiles
 
-import "decentraland_data_downloader/modules/helpers"
+import (
+	"decentraland_data_downloader/modules/helpers"
+	"encoding/json"
+	"os"
+)
 
 func getDclDistrictData() ([]DclMapDistrict, error) {
-	urlDistricts := "https://api.decentraland.org/v2/districts"
-	jsonResDistrict, err := helpers.FetchData(urlDistricts, "")
+	//urlDistricts := "https://api.decentraland.org/v2/districts"
+	//jsonResDistrict, err := helpers.FetchData(urlDistricts, "")
+	//if err != nil {
+	//	return nil, err
+	//}
+	//resDistricts := DclMapDistrictRes{}
+	//err = helpers.ConvertMapToStruct(jsonResDistrict, &resDistricts)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return resDistricts.Data, nil
+	jsonResDistrictStr, err := os.ReadFile("./files/decentraland/districts.json")
+	if err != nil {
+		return nil, err
+	}
+	var jsonResDistrict map[string]any
+	err = json.Unmarshal(jsonResDistrictStr, &jsonResDistrict)
 	if err != nil {
 		return nil, err
 	}

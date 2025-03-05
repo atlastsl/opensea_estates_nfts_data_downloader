@@ -10,6 +10,7 @@ type MapMacro struct {
 	Collection       string `bson:"collection,omitempty"`
 	Contract         string `bson:"contract,omitempty"`
 	Type             string `bson:"type,omitempty"`
+	Subtype          string `bson:"subtype,omitempty"`
 	Slug             string `bson:"slug,omitempty"`
 	Name             string `bson:"name,omitempty"`
 	MacroID          string `bson:"macro_id,omitempty"`
@@ -46,6 +47,7 @@ type DclMapDistrict struct {
 	Description  string   `mapstructure:"description"`
 	Parcels      []string `mapstructure:"parcels"`
 	TotalParcels uint     `mapstructure:"totalParcels"`
+	Category     string   `mapstructure:"category"`
 }
 
 type DclMapDistrictRes struct {

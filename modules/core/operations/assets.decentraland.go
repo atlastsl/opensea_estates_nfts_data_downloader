@@ -88,6 +88,7 @@ func dclProcessNewLandMetadata(asset *Asset, allDistances []*tiles_distances.Map
 				DataType:      MetadataDataTypeInteger,
 				Value:         strconv.FormatInt(int64(distance.ManDistance), 10),
 				MacroType:     distance.MacroType,
+				MacroSubtype:  distance.MacroSubtype,
 				MacroRef:      distance.MacroRef,
 			}
 			metadata.CreatedAt = time.Now()
