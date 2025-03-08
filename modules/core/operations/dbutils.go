@@ -4,7 +4,6 @@ import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"decentraland_data_downloader/modules/helpers"
@@ -12,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"reflect"
@@ -53,6 +51,9 @@ func saveAssetMetadataInDatabase(assetMetadataList []*AssetMetadata, dbInstance 
 			payload["category"] = metadata.Category
 			if metadata.MacroType != "" {
 				payload["macro_type"] = metadata.MacroType
+			}
+			if metadata.MacroSubtype != "" {
+				payload["macro_subtype"] = metadata.MacroSubtype
 			}
 			if !metadata.Date.IsZero() {
 				payload["date"] = metadata.Date
@@ -98,7 +99,7 @@ func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]
 		{"$skip", 0},
 	}
 	limitStage := bson.D{
-		{"$limit", 100000},
+		{"$limit", 1000000},
 	}
 	asArrayStage := bson.D{
 		{"$group", bson.D{
@@ -342,21 +343,21 @@ func getCurrencyPrices(dbInstance *mongo.Database) (map[string][]*collections.Cu
 	return prices, nil
 }
 
-func fetchTileMacroDistances(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*tiles_distances.MapTileMacroDistance, error) {
-	tmDistancesCol := database.CollectionInstance(dbInstance, &tiles_distances.MapTileMacroDistance{})
-	regexPattern := fmt.Sprintf("%s|%s|", string(collection), contract)
-	cursor, err := tmDistancesCol.Find(context.Background(), bson.M{"tile_slug": bson.M{"$regex": primitive.Regex{Pattern: regexPattern, Options: "i"}}})
-	if err != nil {
-		return nil, err
-	}
-	var distances []*tiles_distances.MapTileMacroDistance
-	err = cursor.All(context.Background(), &distances)
-	if err != nil {
-		return nil, err
-	}
-	err = cursor.Close(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	return distances, nil
-}
+//func fetchTileMacroDistances(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*tiles_distances.MapTileMacroDistance, error) {
+//	tmDistancesCol := database.CollectionInstance(dbInstance, &tiles_distances.MapTileMacroDistance{})
+//	regexPattern := fmt.Sprintf("%s|%s|", string(collection), contract)
+//	cursor, err := tmDistancesCol.Find(context.Background(), bson.M{"tile_slug": bson.M{"$regex": primitive.Regex{Pattern: regexPattern, Options: "i"}}})
+//	if err != nil {
+//		return nil, err
+//	}
+//	var distances []*tiles_distances.MapTileMacroDistance
+//	err = cursor.All(context.Background(), &distances)
+//	if err != nil {
+//		return nil, err
+//	}
+//	err = cursor.Close(context.Background())
+//	if err != nil {
+//		return nil, err
+//	}
+//	return distances, nil
+//}

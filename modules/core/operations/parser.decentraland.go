@@ -2,9 +2,7 @@ package operations
 
 import (
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/core_old/assets"
-	"decentraland_data_downloader/modules/helpers"
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -17,19 +15,31 @@ import (
 	"time"
 )
 
-func dclGetDistanceByLandsCoords(coords []string, allDistances []*tiles_distances.MapTileMacroDistance) []*tiles_distances.MapTileMacroDistance {
-	filteredDistances := make([]*tiles_distances.MapTileMacroDistance, 0)
-	if allDistances != nil && len(allDistances) > 0 {
-		filteredDistances = helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
-			for _, coordsItem := range coords {
-				if strings.HasSuffix(distance.TileSlug, "|"+coordsItem) {
-					return true
+func dclGetDistanceByLandsCoords(coords []string, focalZones []*MapFocalZone) []*MapFocalZoneDistance {
+	if focalZones != nil && len(focalZones) > 0 {
+		filteredDistances := make([]*MapFocalZoneDistance, len(focalZones))
+		for i, focalZone := range focalZones {
+			minD := math.MaxInt
+			minDistance := new(MapFocalZoneDistance)
+			if len(coords) > 0 {
+				for _, coord := range coords {
+					cDistance := calculateDistanceToFocalZone2(coord, focalZone)
+					if cDistance.ManDis < minD {
+						minD = cDistance.ManDis
+						minDistance = cDistance
+					}
+				}
+			} else {
+				minDistance = &MapFocalZoneDistance{
+					FocalZone: focalZone,
+					ManDis:    -1,
 				}
 			}
-			return false
-		})
+			filteredDistances[i] = minDistance
+		}
+		return filteredDistances
 	}
-	return filteredDistances
+	return make([]*MapFocalZoneDistance, 0)
 }
 
 func dclSafeGetEstateAssetUpdate(updates *[]*assetUpdate, collection, contract, identifier string) *assetUpdate {
@@ -134,39 +144,39 @@ func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *
 	return
 }
 
-func dclGetEstateMinDistances(allDistances []*tiles_distances.MapTileMacroDistance, macroType string) []*tiles_distances.MapTileMacroDistance {
-	results := make([]*tiles_distances.MapTileMacroDistance, 0)
-	if allDistances != nil && len(allDistances) > 0 {
-		macroSubtypes := helpers.ArrayMap(allDistances, func(t *tiles_distances.MapTileMacroDistance) (bool, string) {
-			return true, t.MacroSubtype
-		}, true, "")
-		if len(macroSubtypes) > 0 {
-			for _, macroSubtype := range macroSubtypes {
-				mtDistances := helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
-					return distance.MacroType == macroType && distance.MacroSubtype == macroSubtype
-				})
-				if len(mtDistances) > 0 {
-					minDistance := math.MaxInt
-					result := new(tiles_distances.MapTileMacroDistance)
-					found := false
-					for _, distance := range mtDistances {
-						if distance.ManDistance < minDistance {
-							found = true
-							result = distance
-							minDistance = distance.ManDistance
-						}
-					}
-					if found {
-						results = append(results, result)
-					}
-				}
-			}
-		}
-	}
-	return results
-}
+//func dclGetEstateMinDistances(allDistances []*tiles_distances.MapTileMacroDistance, macroType string) []*tiles_distances.MapTileMacroDistance {
+//	results := make([]*tiles_distances.MapTileMacroDistance, 0)
+//	if allDistances != nil && len(allDistances) > 0 {
+//		macroSubtypes := helpers.ArrayMap(allDistances, func(t *tiles_distances.MapTileMacroDistance) (bool, string) {
+//			return true, t.MacroSubtype
+//		}, true, "")
+//		if len(macroSubtypes) > 0 {
+//			for _, macroSubtype := range macroSubtypes {
+//				mtDistances := helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
+//					return distance.MacroType == macroType && distance.MacroSubtype == macroSubtype
+//				})
+//				if len(mtDistances) > 0 {
+//					minDistance := math.MaxInt
+//					result := new(tiles_distances.MapTileMacroDistance)
+//					found := false
+//					for _, distance := range mtDistances {
+//						if distance.ManDistance < minDistance {
+//							found = true
+//							result = distance
+//							minDistance = distance.ManDistance
+//						}
+//					}
+//					if found {
+//						results = append(results, result)
+//					}
+//				}
+//			}
+//		}
+//	}
+//	return results
+//}
 
-func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*Asset, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, allDistances []*tiles_distances.MapTileMacroDistance, dbInstance *mongo.Database) ([]*AssetMetadata, error) {
+func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*Asset, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, focalZones []*MapFocalZone, dbInstance *mongo.Database) ([]*AssetMetadata, error) {
 
 	estateInfo := cltInfo.GetAsset("estate")
 	landInfo := cltInfo.GetAsset("land")
@@ -255,34 +265,37 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 
 			// 2. Update Metadata Distances
 			// Get all distances for new lands
-			filteredDistances := dclGetDistanceByLandsCoords(newLands, allDistances)
-			// focused distance macro types
-			macroTypes := []string{"district", "plaza", "road"}
-			// Get minimal distance for all macro types
-			for _, macroType := range macroTypes {
-				distances := dclGetEstateMinDistances(filteredDistances, macroType)
-				for _, distance := range distances {
-					if distance != nil {
-						newDistanceMtd := &AssetMetadata{
-							Collection:    asset.Collection,
-							AssetRef:      asset.ID,
-							AssetContract: asset.Contract,
-							AssetId:       asset.AssetId,
-							Category:      MetadataTypeDistance,
-							Name:          DistanceMetadataName(distance),
-							DisplayName:   DistanceMetadataDisplayName(distance),
-							DataType:      MetadataDataTypeInteger,
-							Value:         strconv.FormatInt(int64(distance.ManDistance), 10),
-							MacroType:     distance.MacroType,
-							MacroSubtype:  distance.MacroSubtype,
-							MacroRef:      distance.MacroRef,
-							Date:          blockTimestamp,
-							OperationsRef: updates.operations,
-						}
-						newDistanceMtd.CreatedAt = time.Now()
-						newDistanceMtd.UpdatedAt = time.Now()
-						metadataList = append(metadataList, newDistanceMtd)
+			//filteredDistances := dclGetDistanceByLandsCoords(newLands, focalZones)
+			//// focused distance macro types
+			//macroTypes := []string{"district", "plaza", "road"}
+			//// Get minimal distance for all macro types
+			//for _, macroType := range macroTypes {
+			//
+			//}
+
+			// 2. Update Metadata Distances
+			// Get all distances for new lands by focal zones
+			distances := dclGetDistanceByLandsCoords(newLands, focalZones)
+			for _, distance := range distances {
+				if distance != nil {
+					newDistanceMtd := &AssetMetadata{
+						Collection:    asset.Collection,
+						AssetRef:      asset.ID,
+						AssetContract: asset.Contract,
+						AssetId:       asset.AssetId,
+						Category:      MetadataTypeDistance,
+						Name:          DistanceMetadataName(distance),
+						DisplayName:   DistanceMetadataDisplayName(distance),
+						DataType:      MetadataDataTypeInteger,
+						Value:         strconv.FormatInt(int64(distance.ManDis), 10),
+						MacroType:     distance.FocalZone.Type,
+						MacroSubtype:  distance.FocalZone.Subtype,
+						Date:          blockTimestamp,
+						OperationsRef: updates.operations,
 					}
+					newDistanceMtd.CreatedAt = time.Now()
+					newDistanceMtd.UpdatedAt = time.Now()
+					metadataList = append(metadataList, newDistanceMtd)
 				}
 			}
 

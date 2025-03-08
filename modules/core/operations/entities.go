@@ -1,25 +1,10 @@
 package operations
 
 import (
-	"decentraland_data_downloader/modules/core/tiles_distances"
-	"decentraland_data_downloader/modules/core/transactions_infos"
-	"fmt"
 	"github.com/kamva/mgm/v3"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
-
-type TransactionLogInfo struct {
-	EventName         string
-	IsCollectionAsset bool
-	From              string
-	To                string
-	Amount            string
-	Asset             string
-	Land              string
-	Estate            string
-	TransactionLog    *transactions_infos.TransactionLog
-}
 
 type OperationValue struct {
 	Value         float64 `bson:"value,omitempty"`
@@ -119,14 +104,6 @@ const (
 	MetadataDataTypeAddress     = "address"
 )
 
-func DistanceMetadataName(distance *tiles_distances.MapTileMacroDistance) string {
-	return fmt.Sprintf("distance-to--%s", distance.MacroSlug)
-}
-
-func DistanceMetadataDisplayName(distance *tiles_distances.MapTileMacroDistance) string {
-	return fmt.Sprintf("Distance to %s", distance.MacroSlug)
-}
-
 const (
 	MetadataNameSize     = "size"
 	MetadataNameOwner    = "owner"
@@ -135,13 +112,3 @@ const (
 	MetadataDisNameOwner = "Owner"
 	MetadataDisNameLands = "Parcels"
 )
-
-type TransactionFull struct {
-	Transaction *transactions_infos.TransactionInfo
-	Logs        []*transactions_infos.TransactionLog
-}
-
-type BlockNumberInput struct {
-	BlockNumber int    `json:"block_number"`
-	Blockchain  string `json:"blockchain"`
-}

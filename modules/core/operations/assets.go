@@ -3,13 +3,12 @@ package operations
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/tiles_distances"
 	"errors"
 	"go.mongodb.org/mongo-driver/mongo"
 	"sync"
 )
 
-func findAssetById(cltInfo *collections.CollectionInfo, contractAddress string, assetId string, allDistances []*tiles_distances.MapTileMacroDistance, dbInstance *mongo.Database) (*Asset, error) {
+func findAssetById(cltInfo *collections.CollectionInfo, contractAddress string, assetId string, focalZones []*MapFocalZone, dbInstance *mongo.Database) (*Asset, error) {
 	asset, err := getAssetFromDatabase(cltInfo.Name, contractAddress, assetId, dbInstance)
 	if err != nil {
 		return nil, err
@@ -17,7 +16,7 @@ func findAssetById(cltInfo *collections.CollectionInfo, contractAddress string, 
 	if asset == nil {
 		var assetMetadataList []*AssetMetadata
 		if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
-			asset, assetMetadataList, err = dclFetchAssetInfo(cltInfo, contractAddress, assetId, allDistances)
+			asset, assetMetadataList, err = dclFetchAssetInfo(cltInfo, contractAddress, assetId, focalZones)
 		} else {
 			err = errors.New("invalid collection info")
 		}
@@ -56,7 +55,7 @@ func getAssetIdentifierFromLogs(cltInfo *collections.CollectionInfo, logsInfo []
 	return result
 }
 
-func findAllAssets(cltInfo *collections.CollectionInfo, txLogsInfos []*TransactionLogInfo, allDistances []*tiles_distances.MapTileMacroDistance) ([]*Asset, error) {
+func findAllAssets(cltInfo *collections.CollectionInfo, txLogsInfos []*TransactionLogInfo, focalZones []*MapFocalZone) ([]*Asset, error) {
 	dbInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		return nil, err
@@ -76,7 +75,7 @@ func findAllAssets(cltInfo *collections.CollectionInfo, txLogsInfos []*Transacti
 		go func() {
 			defer wg.Done()
 			contract, assetId := assetIdItem["contract"], assetIdItem["asset_id"]
-			asset, e0 := findAssetById(cltInfo, contract, assetId, allDistances, dbInstance)
+			asset, e0 := findAssetById(cltInfo, contract, assetId, focalZones, dbInstance)
 			dataLocker.Lock()
 			if e0 != nil {
 				allErrors = append(allErrors, e0)
@@ -94,17 +93,29 @@ func findAllAssets(cltInfo *collections.CollectionInfo, txLogsInfos []*Transacti
 		return assets, nil
 	}
 
-	/*assets := make([]*Asset, 0)
+	//assets := make([]*Asset, 0)
+	//
+	//colAllLogsInfo := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetAll)
+	//assetIds := getAssetIdentifierFromLogs(cltInfo, colAllLogsInfo)
+	//
+	//for _, assetIdItem := range assetIds {
+	//	contract, assetId := assetIdItem["contract"], assetIdItem["asset_id"]
+	//	asset, e0 := findAssetById(cltInfo, contract, assetId, focalZones, dbInstance)
+	//	if e0 != nil {
+	//		return nil, e0
+	//	}
+	//	assets = append(assets, asset)
+	//}
 
-	transfersLogsInfo := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetTransfers)
+	//transfersLogsInfo := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetTransfers)
 
-	for _, logInfo := range transfersLogsInfo {
-		asset, e0 := findAssetById(cltInfo, logInfo.TransactionLog.Address, logInfo.Asset, allDistances, dbInstance)
-		if e0 != nil {
-			return nil, e0
-		}
-		assets = append(assets, asset)
-	}
+	//for _, logInfo := range transfersLogsInfo {
+	//	asset, e0 := findAssetById(cltInfo, logInfo.TransactionLog.Address, logInfo.Asset, focalZones, dbInstance)
+	//	if e0 != nil {
+	//		return nil, e0
+	//	}
+	//	assets = append(assets, asset)
+	//}
 
-	return assets, nil*/
+	//return assets, nil
 }

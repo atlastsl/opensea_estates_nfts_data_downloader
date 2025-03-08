@@ -112,7 +112,7 @@ func Errore(err error, _panic bool) {
 	if fileErrLogger != nil {
 		fileErrLogger.Println(err)
 	}
-	if _panic {
+	if true {
 		panic(err)
 	}
 }

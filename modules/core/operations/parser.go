@@ -3,14 +3,13 @@ package operations
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/tiles_distances"
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"sync"
 	"time"
 )
 
-func convertAssetsUpdatesListAsMetadata(updates []*assetUpdate, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, allAssets []*Asset, allDistances []*tiles_distances.MapTileMacroDistance) ([]*AssetMetadata, error) {
+func convertAssetsUpdatesListAsMetadata(updates []*assetUpdate, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, allAssets []*Asset, focalZones []*MapFocalZone) ([]*AssetMetadata, error) {
 	dbInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		return nil, err
@@ -28,7 +27,7 @@ func convertAssetsUpdatesListAsMetadata(updates []*assetUpdate, blockTimestamp t
 			metadataListI := make([]*AssetMetadata, 0)
 			var err error
 			if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
-				metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, blockTimestamp, cltInfo, allDistances, dbInstance)
+				metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, blockTimestamp, cltInfo, focalZones, dbInstance)
 			} else {
 				err = invalidCollectionError
 			}
@@ -48,20 +47,20 @@ func convertAssetsUpdatesListAsMetadata(updates []*assetUpdate, blockTimestamp t
 		return nil, allErrors[0]
 	}
 
-	/*allMetadata := make([]*AssetMetadata, 0)
-	for _, updateItem := range updates {
-		metadataListI := make([]*AssetMetadata, 0)
-		if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
-			metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, blockTimestamp, cltInfo, allDistances, dbInstance)
-		} else {
-			err = invalidCollectionError
-		}
-		if err != nil {
-			return nil, err
-		} else if len(metadataListI) > 0 {
-			allMetadata = append(allMetadata, metadataListI...)
-		}
-	}*/
+	//allMetadata := make([]*AssetMetadata, 0)
+	//for _, updateItem := range updates {
+	//	metadataListI := make([]*AssetMetadata, 0)
+	//	if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
+	//		metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, blockTimestamp, cltInfo, focalZones, dbInstance)
+	//	} else {
+	//		err = invalidCollectionError
+	//	}
+	//	if err != nil {
+	//		return nil, err
+	//	} else if len(metadataListI) > 0 {
+	//		allMetadata = append(allMetadata, metadataListI...)
+	//	}
+	//}
 
 	return allMetadata, nil
 }
@@ -78,27 +77,31 @@ func convertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *col
 func parseTransaction(txFull *TransactionFull, params map[string]any) ([]*Operation, []*AssetMetadata, error) {
 	cltInfo := params["cltInfo"].(*collections.CollectionInfo)
 	currencies := params["currencies"].(map[string]*collections.Currency)
-	allDistances := params["allDistances"].([]*tiles_distances.MapTileMacroDistance)
+	focalZones := params["focalZones"].([]*MapFocalZone)
 	allPrices := params["allPrices"].(map[string][]*collections.CurrencyPrice)
 
 	txLogsInfos := extractLogInfos(txFull.Logs, cltInfo, currencies)
 	assetsUpdatesList, err := convertTxLogsToAssetUpdates(txLogsInfos, cltInfo)
 	if err != nil {
+		print("ERROR FROM convertTxLogsToAssetUpdates")
 		return nil, nil, err
 	}
 
-	allAssets, err := findAllAssets(cltInfo, txLogsInfos, allDistances)
+	allAssets, err := findAllAssets(cltInfo, txLogsInfos, focalZones)
 	if err != nil {
+		print("ERROR FROM findAllAssets")
 		return nil, nil, err
 	}
 
-	assetsMetadataList, err := convertAssetsUpdatesListAsMetadata(assetsUpdatesList, txFull.Transaction.BlockTimestamp, cltInfo, allAssets, allDistances)
+	assetsMetadataList, err := convertAssetsUpdatesListAsMetadata(assetsUpdatesList, txFull.Transaction.BlockTimestamp, cltInfo, allAssets, focalZones)
 	if err != nil {
+		print("ERROR FROM convertAssetsUpdatesListAsMetadata")
 		return nil, nil, err
 	}
 
 	operations, err := convertTransactionInfoToOperations(txFull, txLogsInfos, cltInfo, currencies, allPrices, allAssets)
 	if err != nil {
+		print("ERROR FROM convertTransactionInfoToOperations")
 		return nil, nil, err
 	}
 
@@ -156,17 +159,20 @@ func parseTransactions(transactions []*TransactionFull, params map[string]any, d
 		wg.Done()
 	}()*/
 
-	/*metadataList := make([]*AssetMetadata, 0)
-	operations := make([]*Operation, 0)
-
-	for _, transaction := range transactions {
-		tOperations, tMetadataList, err := parseTransaction(transaction, params)
-		if err != nil {
-			return err
-		}
-		operations = append(operations, tOperations...)
-		metadataList = append(metadataList, tMetadataList...)
-	}*/
+	//metadataList := make([]*AssetMetadata, 0)
+	//operations := make([]*Operation, 0)
+	//
+	//for _, transaction := range transactions {
+	//	tOperations, tMetadataList, err := parseTransaction(transaction, params)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	operations = append(operations, tOperations...)
+	//	metadataList = append(metadataList, tMetadataList...)
+	//}
+	//
+	//err := saveOperationsAndMetadata(operations, metadataList, dbInstance)
+	//return err
 
 	//return nil
 }

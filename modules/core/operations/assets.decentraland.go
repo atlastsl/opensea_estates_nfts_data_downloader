@@ -2,7 +2,6 @@ package operations
 
 import (
 	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/helpers"
 	"encoding/json"
 	"errors"
@@ -58,21 +57,21 @@ func dclParseCoordinatesLand(_dclAssetInfo *dclAssetInfo) (int, int, error) {
 	}
 }
 
-func dclGetDistanceByLandCoords(coords string, allDistances []*tiles_distances.MapTileMacroDistance) []*tiles_distances.MapTileMacroDistance {
-	filteredDistances := make([]*tiles_distances.MapTileMacroDistance, 0)
-	if allDistances != nil && len(allDistances) > 0 {
-		filteredDistances = helpers.ArrayFilter(allDistances, func(distance *tiles_distances.MapTileMacroDistance) bool {
-			return strings.HasSuffix(distance.TileSlug, "|"+coords)
-		})
+func dclGetDistanceByLandCoords(X, Y int, focalZones []*MapFocalZone) []*MapFocalZoneDistance {
+	if focalZones != nil && len(focalZones) > 0 {
+		distances := make([]*MapFocalZoneDistance, len(focalZones))
+		for i, focalZone := range focalZones {
+			distances[i] = calculateDistanceToFocalZone(X, Y, focalZone)
+		}
+		return distances
 	}
-	return filteredDistances
+	return make([]*MapFocalZoneDistance, 0)
 }
 
-func dclProcessNewLandMetadata(asset *Asset, allDistances []*tiles_distances.MapTileMacroDistance) ([]*AssetMetadata, error) {
+func dclProcessNewLandMetadata(asset *Asset, focalZones []*MapFocalZone) ([]*AssetMetadata, error) {
 	var assetMetadata = make([]*AssetMetadata, 0)
 	if asset != nil && asset.AssetId != "" {
-		coords := fmt.Sprintf("%d,%d", asset.X, asset.Y)
-		distances := dclGetDistanceByLandCoords(coords, allDistances)
+		distances := dclGetDistanceByLandCoords(asset.X, asset.Y, focalZones)
 		if len(distances) == 0 {
 			return nil, errors.New("invalid decentraland LAND asset [distances not found]")
 		}
@@ -86,10 +85,9 @@ func dclProcessNewLandMetadata(asset *Asset, allDistances []*tiles_distances.Map
 				Name:          DistanceMetadataName(distance),
 				DisplayName:   DistanceMetadataDisplayName(distance),
 				DataType:      MetadataDataTypeInteger,
-				Value:         strconv.FormatInt(int64(distance.ManDistance), 10),
-				MacroType:     distance.MacroType,
-				MacroSubtype:  distance.MacroSubtype,
-				MacroRef:      distance.MacroRef,
+				Value:         strconv.FormatInt(int64(distance.ManDis), 10),
+				MacroType:     distance.FocalZone.Type,
+				MacroSubtype:  distance.FocalZone.Subtype,
 			}
 			metadata.CreatedAt = time.Now()
 			metadata.UpdatedAt = time.Now()
@@ -100,7 +98,7 @@ func dclProcessNewLandMetadata(asset *Asset, allDistances []*tiles_distances.Map
 	return nil, errors.New("invalid decentraland LAND asset [either Name or Identifier must be specified]")
 }
 
-func dclFetchAssetInfo(cltInfo *collections.CollectionInfo, contractAddress string, assetId string, allDistances []*tiles_distances.MapTileMacroDistance) (*Asset, []*AssetMetadata, error) {
+func dclFetchAssetInfo(cltInfo *collections.CollectionInfo, contractAddress string, assetId string, focalZones []*MapFocalZone) (*Asset, []*AssetMetadata, error) {
 	landInfo := cltInfo.GetAsset("land")
 	estateInfo := cltInfo.GetAsset("estate")
 	url := ""
@@ -154,7 +152,7 @@ func dclFetchAssetInfo(cltInfo *collections.CollectionInfo, contractAddress stri
 			}
 			asset.X = X
 			asset.Y = Y
-			assetMetadata, err = dclProcessNewLandMetadata(asset, allDistances)
+			assetMetadata, err = dclProcessNewLandMetadata(asset, focalZones)
 			if err != nil {
 				return nil, nil, err
 			}
