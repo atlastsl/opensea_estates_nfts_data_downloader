@@ -98,6 +98,28 @@ func dclProcessNewLandMetadata(asset *Asset, focalZones []*MapFocalZone) ([]*Ass
 	return nil, errors.New("invalid decentraland LAND asset [either Name or Identifier must be specified]")
 }
 
+func dclFetchAssetInfoOnline(url string, target *dclAssetInfo, maxRetries int) (bool, error) {
+	attempts, done := 0, false
+	var err error
+	var data map[string]any
+	for attempts < maxRetries && done == false {
+		data, err = helpers.FetchData(url, "")
+		attempts++
+		if err != nil {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		str, _ := json.Marshal(data)
+		err = json.Unmarshal(str, target)
+		if err != nil {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		done = true
+	}
+	return done, err
+}
+
 func dclFetchAssetInfo(cltInfo *collections.CollectionInfo, contractAddress string, assetId string, focalZones []*MapFocalZone) (*Asset, []*AssetMetadata, error) {
 	landInfo := cltInfo.GetAsset("land")
 	estateInfo := cltInfo.GetAsset("estate")
@@ -112,14 +134,22 @@ func dclFetchAssetInfo(cltInfo *collections.CollectionInfo, contractAddress stri
 		assetType = estateInfo.Name
 	}
 	if url != "" {
-		data, err := helpers.FetchData(url, "")
-		if err != nil {
-			return nil, nil, err
-		}
-		str, _ := json.Marshal(data)
+		//data, err := helpers.FetchData(url, "")
+		//if err != nil {
+		//	return nil, nil, err
+		//}
+		//str, _ := json.Marshal(data)
+		//_dclAssetInfo := &dclAssetInfo{}
+		//err = json.Unmarshal(str, _dclAssetInfo)
+		//if err != nil {
+		//	return nil, nil, err
+		//}
+		//if _dclAssetInfo.Id == "" {
+		//	return nil, nil, errors.New("invalid asset id")
+		//}
 		_dclAssetInfo := &dclAssetInfo{}
-		err = json.Unmarshal(str, _dclAssetInfo)
-		if err != nil {
+		done, err := dclFetchAssetInfoOnline(url, _dclAssetInfo, 50)
+		if !done {
 			return nil, nil, err
 		}
 		if _dclAssetInfo.Id == "" {
