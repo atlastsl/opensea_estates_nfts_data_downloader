@@ -3,6 +3,7 @@ package operations
 import (
 	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/core_old/assets"
+	"decentraland_data_downloader/modules/helpers"
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -275,6 +276,9 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 
 			// 2. Update Metadata Distances
 			// Get all distances for new lands by focal zones
+			newLands = helpers.ArrayFilter(newLands, func(s string) bool {
+				return strings.TrimSpace(s) == ""
+			})
 			distances := dclGetDistanceByLandsCoords(newLands, focalZones)
 			for _, distance := range distances {
 				if distance != nil {
