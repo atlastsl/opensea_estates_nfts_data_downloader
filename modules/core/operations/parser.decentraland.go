@@ -277,7 +277,7 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 			// 2. Update Metadata Distances
 			// Get all distances for new lands by focal zones
 			newLands = helpers.ArrayFilter(newLands, func(s string) bool {
-				return strings.TrimSpace(s) == ""
+				return strings.TrimSpace(s) != ""
 			})
 			distances := dclGetDistanceByLandsCoords(newLands, focalZones)
 			for _, distance := range distances {
