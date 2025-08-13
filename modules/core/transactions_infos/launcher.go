@@ -3,7 +3,7 @@ package transactions_infos
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/helpers"
 	"reflect"
 	"sync"
@@ -13,7 +13,7 @@ import (
 const TxInfoArguments = "tx_info"
 
 type TxInfoAddDataGetter struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x TxInfoAddDataGetter) FetchData(worker *multithread.Worker) {
@@ -30,16 +30,16 @@ func (x TxInfoAddDataGetter) FetchData(worker *multithread.Worker) {
 	defer database.CloseDatabaseConnection(databaseInstance)
 	worker.LoggingExtra("Connection to database OK!")
 
-	worker.LoggingExtra("Fetching Collection Info from database...")
-	data, err = getNftCollectionInfo(x.Collection, databaseInstance)
-	worker.LoggingExtra("Fetching Collection Info from database OK. Publishing data...")
+	worker.LoggingExtra("Fetching Metaverse Info from database...")
+	data, err = getMetaverseInfo(x.Metaverse, databaseInstance)
+	worker.LoggingExtra("Fetching Metaverse Info from database OK. Publishing data...")
 
 	multithread.PublishDataNotification(worker, "-", data, err)
 	multithread.PublishDoneNotification(worker)
 }
 
 type TxInfoMainDataGetter struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x TxInfoMainDataGetter) FetchData(worker *multithread.Worker) {
@@ -54,7 +54,7 @@ func (x TxInfoMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Connection to database OK!")
 
 	worker.LoggingExtra("Fetching transaction hashes from database...")
-	data, err := getTransactionsHashesSlices(x.Collection, databaseInstance)
+	data, err := getTransactionsHashesSlices(x.Metaverse, databaseInstance)
 	worker.LoggingExtra("Fetching transaction hashes from database OK. Publishing data...")
 
 	multithread.PublishDataNotification(worker, "-", helpers.AnytiseData(data), err)
@@ -63,7 +63,7 @@ func (x TxInfoMainDataGetter) FetchData(worker *multithread.Worker) {
 }
 
 type TxDataParser struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x TxDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
@@ -87,7 +87,7 @@ func (x TxDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) 
 						addData := niMap["addData"]
 						mainData := niMap["mainData"]
 
-						err := parseTransactionsInfo(mainData.([]*transactionInput), addData.(*collections.CollectionInfo), wg)
+						err := parseTransactionsInfo(mainData.([]*transactionInput), addData.(*metaverses.MetaverseInfo), wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 
@@ -101,26 +101,26 @@ func (x TxDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) 
 	}
 }
 
-func Launch(collection string, nbParsers int) {
+func Launch(metaverse string, nbParsers int) {
 
-	addDataJob := &TxInfoAddDataGetter{Collection: collections.Collection(collection)}
-	mainDataJob := &TxInfoMainDataGetter{Collection: collections.Collection(collection)}
-	parserJob := &TxDataParser{Collection: collections.Collection(collection)}
+	addDataJob := &TxInfoAddDataGetter{Metaverse: metaverses.MetaverseName(metaverse)}
+	mainDataJob := &TxInfoMainDataGetter{Metaverse: metaverses.MetaverseName(metaverse)}
+	parserJob := &TxDataParser{Metaverse: metaverses.MetaverseName(metaverse)}
 
 	workTitle := "Transactions Info Downloader"
 	workerTitles := []string{
-		"Collection Info Getter",
+		"Metaverse Info Getter",
 		"Transactions Hashes Getter",
 		"Transaction Hash --> Transaction info downloader & Saver",
 	}
 	workerDescriptions := []string{
-		"Get collection info from database",
+		"Get metaverse info from database",
 		"Get all transactions hashes from database",
 		"Fetch transaction infos from Infura by transaction hash",
 	}
 
 	multithread.Launch(
-		collections.Collection(collection),
+		metaverse,
 		addDataJob,
 		mainDataJob,
 		parserJob,

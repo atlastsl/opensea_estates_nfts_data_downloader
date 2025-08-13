@@ -2,80 +2,39 @@ package operations
 
 import (
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
-	"errors"
-	"go.mongodb.org/mongo-driver/mongo"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"sync"
 )
 
-func findAssetById(cltInfo *collections.CollectionInfo, contractAddress string, assetId string, focalZones []*MapFocalZone, dbInstance *mongo.Database) (*Asset, error) {
-	asset, err := getAssetFromDatabase(cltInfo.Name, contractAddress, assetId, dbInstance)
-	if err != nil {
-		return nil, err
-	}
-	if asset == nil {
-		var assetMetadataList []*AssetMetadata
-		if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
-			asset, assetMetadataList, err = dclFetchAssetInfo(cltInfo, contractAddress, assetId, focalZones)
-		} else {
-			err = errors.New("invalid collection info")
-		}
-		if err != nil {
-			return nil, err
-		}
-		err = saveAssetInDatabase(asset, dbInstance)
-		if err != nil {
-			return nil, err
-		}
-		err = saveAssetMetadataInDatabase(assetMetadataList, dbInstance)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return asset, nil
-}
-
-func checkIfAssetIsInList(assets []*Asset, contract, assetId string) bool {
-	if assets == nil || len(assets) == 0 {
-		return false
-	}
-	for _, asset := range assets {
-		if asset.Contract == contract && asset.AssetId == assetId {
-			return true
-		}
-	}
-	return false
-}
-
-func getAssetIdentifierFromLogs(cltInfo *collections.CollectionInfo, logsInfo []*TransactionLogInfo) []map[string]string {
+func getAssetIdentifierFromLogs(mtvInfo *metaverses.MetaverseInfo, logsInfo []*TransactionLogInfo) []map[string]string {
 	result := make([]map[string]string, 0)
-	if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
-		result = dclGetAssetIdentifierFromLogs(cltInfo, logsInfo)
+	if metaverses.MetaverseName(mtvInfo.Name) == metaverses.MetaverseDcl {
+		result = dclGetAssetIdentifierFromLogs(mtvInfo, logsInfo)
 	}
 	return result
 }
 
-func findAllAssets(cltInfo *collections.CollectionInfo, txLogsInfos []*TransactionLogInfo, focalZones []*MapFocalZone) ([]*Asset, error) {
+func findAllAssets(mtvInfo *metaverses.MetaverseInfo, txLogsInfos []*TransactionLogInfo) ([]*metaverses.MetaverseAsset, error) {
 	dbInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer database.CloseDatabaseConnection(dbInstance)
 
-	assets := make([]*Asset, 0)
+	assets := make([]*metaverses.MetaverseAsset, 0)
 	allErrors := make([]error, 0)
 	wg := &sync.WaitGroup{}
 	dataLocker := &sync.RWMutex{}
 
 	colAllLogsInfo := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetAll)
-	assetIds := getAssetIdentifierFromLogs(cltInfo, colAllLogsInfo)
+	assetIds := getAssetIdentifierFromLogs(mtvInfo, colAllLogsInfo)
 
 	for _, assetIdItem := range assetIds {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			contract, assetId := assetIdItem["contract"], assetIdItem["asset_id"]
-			asset, e0 := findAssetById(cltInfo, contract, assetId, focalZones, dbInstance)
+			asset, e0 := getAssetFromDatabase(mtvInfo.Name, contract, assetId, dbInstance)
 			dataLocker.Lock()
 			if e0 != nil {
 				allErrors = append(allErrors, e0)
@@ -93,29 +52,29 @@ func findAllAssets(cltInfo *collections.CollectionInfo, txLogsInfos []*Transacti
 		return assets, nil
 	}
 
-	//assets := make([]*Asset, 0)
+	//assets := make([]*metaverses.MetaverseAsset, 0)
 	//
 	//colAllLogsInfo := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetAll)
-	//assetIds := getAssetIdentifierFromLogs(cltInfo, colAllLogsInfo)
+	//assetIds := getAssetIdentifierFromLogs(mtvInfo, colAllLogsInfo)
 	//
 	//for _, assetIdItem := range assetIds {
 	//	contract, assetId := assetIdItem["contract"], assetIdItem["asset_id"]
-	//	asset, e0 := findAssetById(cltInfo, contract, assetId, focalZones, dbInstance)
+	//	asset, e0 := getAssetFromDatabase(mtvInfo.Name, contract, assetId, dbInstance)
 	//	if e0 != nil {
 	//		return nil, e0
 	//	}
 	//	assets = append(assets, asset)
 	//}
-
+	//
 	//transfersLogsInfo := filterTransactionLogsInfo(txLogsInfos, filterTxLogsInfoColAssetTransfers)
-
+	//
 	//for _, logInfo := range transfersLogsInfo {
-	//	asset, e0 := findAssetById(cltInfo, logInfo.TransactionLog.Address, logInfo.Asset, focalZones, dbInstance)
+	//	asset, e0 := getAssetFromDatabase(mtvInfo.Name, logInfo.TransactionLog.Address, logInfo.Asset, dbInstance)
 	//	if e0 != nil {
 	//		return nil, e0
 	//	}
 	//	assets = append(assets, asset)
 	//}
 
-	//return assets, nil
+	return assets, nil
 }

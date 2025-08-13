@@ -3,7 +3,7 @@ package transactions_hashes
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/helpers"
 	"fmt"
 	"reflect"
@@ -14,7 +14,7 @@ import (
 const TxHashesArguments = "tx_hashes"
 
 type TxHashesAddDataGetter struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x TxHashesAddDataGetter) FetchData(worker *multithread.Worker) {
@@ -27,7 +27,7 @@ func (x TxHashesAddDataGetter) FetchData(worker *multithread.Worker) {
 }
 
 type TxHashesMainDataGetter struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x TxHashesMainDataGetter) FetchData(worker *multithread.Worker) {
@@ -44,7 +44,7 @@ func (x TxHashesMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Connection to database OK!")
 
 	worker.LoggingExtra("Get Block number boundaries for topics...")
-	boundaries, err := getTopicBoundariesForLogs(x.Collection, databaseInstance)
+	boundaries, err := getTopicBoundariesForLogs(x.Metaverse, databaseInstance)
 	if err != nil {
 		worker.LoggingError("Failed to Get Latest Block Numbers fetched !", err)
 		return
@@ -77,7 +77,7 @@ func (x TxHashesMainDataGetter) FetchData(worker *multithread.Worker) {
 
 			task := fmt.Sprintf("%s-%d", currentTopic, currentBN)
 
-			response, nextLFBN, err2 := getEthEventsLogsOfTopic(x.Collection, currentTopicInfo, currentBN)
+			response, nextLFBN, err2 := getEthEventsLogsOfTopic(x.Metaverse, currentTopicInfo, currentBN)
 			currentTopicInfo.StartBlock = nextLFBN
 			mustSaveTopicInfo = true
 			if err2 != nil {
@@ -110,7 +110,7 @@ func (x TxHashesMainDataGetter) FetchData(worker *multithread.Worker) {
 	}
 
 	if mustSaveTopicInfo {
-		_ = saveTopicBoundariesForLogsInDatabase(x.Collection, boundaries, databaseInstance)
+		_ = saveTopicBoundariesForLogsInDatabase(x.Metaverse, boundaries, databaseInstance)
 	}
 
 	multithread.PublishDoneNotification(worker)
@@ -118,7 +118,7 @@ func (x TxHashesMainDataGetter) FetchData(worker *multithread.Worker) {
 }
 
 type TxHashesDataParser struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x TxHashesDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
@@ -142,7 +142,7 @@ func (x TxHashesDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitG
 						mainData := niMap["mainData"]
 						events := mainData.([]*helpers.EthEventLog)
 
-						err := parseEthEventsRes(events, x.Collection, wg)
+						err := parseEthEventsRes(events, x.Metaverse, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 
@@ -156,11 +156,11 @@ func (x TxHashesDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitG
 	}
 }
 
-func Launch(collection string, nbParsers int) {
+func Launch(metaverse string, nbParsers int) {
 
-	addDataJob := &TxHashesAddDataGetter{Collection: collections.Collection(collection)}
-	mainDataJob := &TxHashesMainDataGetter{Collection: collections.Collection(collection)}
-	parserJob := &TxHashesDataParser{Collection: collections.Collection(collection)}
+	addDataJob := &TxHashesAddDataGetter{Metaverse: metaverses.MetaverseName(metaverse)}
+	mainDataJob := &TxHashesMainDataGetter{Metaverse: metaverses.MetaverseName(metaverse)}
+	parserJob := &TxHashesDataParser{Metaverse: metaverses.MetaverseName(metaverse)}
 
 	workTitle := "Transaction Hashes Downloader"
 	workerTitles := []string{
@@ -175,7 +175,7 @@ func Launch(collection string, nbParsers int) {
 	}
 
 	multithread.Launch(
-		collections.Collection(collection),
+		metaverse,
 		addDataJob,
 		mainDataJob,
 		parserJob,

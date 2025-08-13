@@ -1,7 +1,6 @@
 package multithread
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
 	"decentraland_data_downloader/modules/helpers"
 	"decentraland_data_downloader/modules/logger"
 	"fmt"
@@ -199,8 +198,8 @@ func launch(workers []*Worker) {
 	logger.Info(fmt.Sprintf("[Workers (%d workers)] - Workers jobs all Done", len(workers)))
 }
 
-func Launch(collection collections.Collection, addDataJob, mainDataJob WorkerGetterJob, writerJob WorkerParserJob, nbParsers int, workTitle string, workerTitles []string, workerDescriptions []string) {
-	logger.InitializeLogger(collection, workTitle)
+func Launch(metaverse string, addDataJob, mainDataJob WorkerGetterJob, writerJob WorkerParserJob, nbParsers int, workTitle string, workerTitles []string, workerDescriptions []string) {
+	logger.InitializeLogger(metaverse, workTitle)
 
 	logger.Info(fmt.Sprintf("%s", workTitle))
 	logger.Info("--------------------------------------------------------------")
@@ -209,9 +208,9 @@ func Launch(collection collections.Collection, addDataJob, mainDataJob WorkerGet
 	workers := make([]*Worker, 0)
 	gAddDataWorker := NewWorker(
 		WorkerTypeGetter,
-		fmt.Sprintf("<%s> %s", string(collection), workerTitles[0]),
+		fmt.Sprintf("<%s> %s", metaverse, workerTitles[0]),
 		1,
-		fmt.Sprintf("<%s> %s", string(collection), workerDescriptions[0]),
+		fmt.Sprintf("<%s> %s", metaverse, workerDescriptions[0]),
 		addDataJob,
 		nil,
 		&AdditionalDataNotifier,
@@ -220,9 +219,9 @@ func Launch(collection collections.Collection, addDataJob, mainDataJob WorkerGet
 	)
 	gMainDataWorker := NewWorker(
 		WorkerTypeGetter,
-		fmt.Sprintf("<%s> %s", string(collection), workerTitles[1]),
+		fmt.Sprintf("<%s> %s", metaverse, workerTitles[1]),
 		2,
-		fmt.Sprintf("<%s> %s", string(collection), workerDescriptions[1]),
+		fmt.Sprintf("<%s> %s", metaverse, workerDescriptions[1]),
 		mainDataJob,
 		nil,
 		&MainDataNotifier,
@@ -234,9 +233,9 @@ func Launch(collection collections.Collection, addDataJob, mainDataJob WorkerGet
 	for i := 0; i < nbParsers; i++ {
 		parserWorkerI := NewWorker(
 			WorkerTypeParser,
-			fmt.Sprintf("<%s> %s", string(collection), workerTitles[2]),
+			fmt.Sprintf("<%s> %s", metaverse, workerTitles[2]),
 			int8(i+1),
-			fmt.Sprintf("<%s> %s", string(collection), workerDescriptions[2]),
+			fmt.Sprintf("<%s> %s", metaverse, workerDescriptions[2]),
 			nil,
 			writerJob,
 			&ParserWorkerNotifier,

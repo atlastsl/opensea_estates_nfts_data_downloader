@@ -2,7 +2,7 @@ package transactions_infos
 
 import (
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/helpers"
 	"strings"
@@ -78,7 +78,7 @@ func parseTransactionLogs(logs []helpers.EthEventLog, blockchain string) []*Tran
 	return txLogs
 }
 
-func parseTransactionInfo(transactionHash *transactions_hashes.TransactionHash, txDetails *helpers.EthTransaction, txReceipt *helpers.EthTransactionReceipt, cltInfo *collections.CollectionInfo) (*TransactionInfo, []*TransactionLog) {
+func parseTransactionInfo(transactionHash *transactions_hashes.TransactionHash, txDetails *helpers.EthTransaction, txReceipt *helpers.EthTransactionReceipt, mtvInfo *metaverses.MetaverseInfo) (*TransactionInfo, []*TransactionLog) {
 	var txInfo *TransactionInfo
 	txLogs := make([]*TransactionLog, 0)
 	if txDetails != nil && txReceipt != nil {
@@ -113,7 +113,7 @@ func parseTransactionInfo(transactionHash *transactions_hashes.TransactionHash, 
 	return txInfo, txLogs
 }
 
-func convertTxHashToTxInfo(txInput *transactionInput, cltInfo *collections.CollectionInfo) (*TransactionInfo, []*TransactionLog, error) {
+func convertTxHashToTxInfo(txInput *transactionInput, mtvInfo *metaverses.MetaverseInfo) (*TransactionInfo, []*TransactionLog, error) {
 	var txDetails *helpers.EthTransaction
 	var txReceipt *helpers.EthTransactionReceipt
 	var err error
@@ -129,7 +129,7 @@ func convertTxHashToTxInfo(txInput *transactionInput, cltInfo *collections.Colle
 	if err != nil {
 		return nil, nil, err
 	}
-	txInfo, tTxLogs := parseTransactionInfo(txInput.txHash, txDetails, txReceipt, cltInfo)
+	txInfo, tTxLogs := parseTransactionInfo(txInput.txHash, txDetails, txReceipt, mtvInfo)
 	return txInfo, tTxLogs, err
 }
 
@@ -148,7 +148,7 @@ func saveTransactionInfo(txInfos []*TransactionInfo, txLogs []*TransactionLog) e
 	return err
 }
 
-func parseTransactionsInfo(inputs []*transactionInput, cltInfo *collections.CollectionInfo, wg *sync.WaitGroup) error {
+func parseTransactionsInfo(inputs []*transactionInput, cltInfo *metaverses.MetaverseInfo, wg *sync.WaitGroup) error {
 	txInfos := make([]*TransactionInfo, 0)
 	txLogs := make([]*TransactionLog, 0)
 	allErrors := make([]error, 0)
@@ -189,21 +189,22 @@ func parseTransactionsInfo(inputs []*transactionInput, cltInfo *collections.Coll
 		}
 	}()
 
-	/*txInfos := make([]*TransactionInfo, 0)
-	txLogs := make([]*TransactionLog, 0)
-	for _, txInput := range inputs {
-		txInfo, tTxLogs, err := convertTxHashToTxInfo(txInput, cltInfo)
-		if err != nil {
-			return err
-		} else {
-			if txInfo != nil {
-				txInfos = append(txInfos, txInfo)
-			}
-			if tTxLogs != nil && len(tTxLogs) > 0 {
-				txLogs = append(txLogs, tTxLogs...)
-			}
-		}
-	}*/
+	//txInfos := make([]*TransactionInfo, 0)
+	//txLogs := make([]*TransactionLog, 0)
+	//for _, txInput := range inputs {
+	//	txInfo, tTxLogs, err := convertTxHashToTxInfo(txInput, cltInfo)
+	//	if err != nil {
+	//		return err
+	//	} else {
+	//		if txInfo != nil {
+	//			txInfos = append(txInfos, txInfo)
+	//		}
+	//		if tTxLogs != nil && len(tTxLogs) > 0 {
+	//			txLogs = append(txLogs, tTxLogs...)
+	//		}
+	//	}
+	//}
+	//println(txInfos, txLogs)
 
 	return nil
 }

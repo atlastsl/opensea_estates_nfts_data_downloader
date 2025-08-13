@@ -1,21 +1,12 @@
 package operations
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func prepareFocalZones(collection collections.Collection) ([]*MapFocalZone, error) {
-	focalZones := make([]*MapFocalZone, 0)
-	var err error
-	if collection == collections.CollectionDcl {
-		focalZones, err = dclPrepareFocalZones(collection)
-	}
-	return focalZones, err
-}
-
-func getAdditionalData(collection collections.Collection, dbInstance *mongo.Database) (map[string]any, error) {
-	cltInfo, err := getNftCollectionInfo(collection, dbInstance)
+func getAdditionalData(metaverse metaverses.MetaverseName, dbInstance *mongo.Database) (map[string]any, error) {
+	cltInfo, err := metaverses.GetMetaverseInfoInDatabase(metaverse, dbInstance)
 	if err != nil {
 		return nil, err
 	}
@@ -27,17 +18,5 @@ func getAdditionalData(collection collections.Collection, dbInstance *mongo.Data
 	if err != nil {
 		return nil, err
 	}
-	focalZones, err := prepareFocalZones(collection)
-	if err != nil {
-		return nil, err
-	}
-	//tilesDistances := make([]*tiles_distances.MapTileMacroDistance, 0)
-	//if collection == collections.CollectionDcl {
-	//	landInfo := cltInfo.GetAsset("land")
-	//	tilesDistances, err = fetchTileMacroDistances(collection, landInfo.Contract, dbInstance)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
-	return map[string]any{"cltInfo": cltInfo, "currencies": currencies, "allPrices": currenciesPrices, "focalZones": focalZones}, nil
+	return map[string]any{"cltInfo": cltInfo, "currencies": currencies, "allPrices": currenciesPrices}, nil
 }

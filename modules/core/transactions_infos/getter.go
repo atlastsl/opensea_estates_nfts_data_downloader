@@ -1,7 +1,7 @@
 package transactions_infos
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"math"
@@ -9,8 +9,8 @@ import (
 
 const PartitionsNbItem = 100
 
-func getTransactionsHashesSlices(collection collections.Collection, dbInstance *mongo.Database) (map[string][]*transactionInput, error) {
-	allTransactionsHashes, err := getTransactionHashesFromDatabase(collection, dbInstance)
+func getTransactionsHashesSlices(metaverse metaverses.MetaverseName, dbInstance *mongo.Database) (map[string][]*transactionInput, error) {
+	allTransactionsHashes, err := getTransactionHashesFromDatabase(metaverse, dbInstance)
 	if err != nil {
 		return nil, err
 	}

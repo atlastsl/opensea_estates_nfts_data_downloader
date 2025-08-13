@@ -1,6 +1,10 @@
 package helpers
 
-import "golang.org/x/exp/slices"
+import (
+	"golang.org/x/exp/slices"
+	"math/rand"
+	"time"
+)
 
 func ArrayFilter[T any](arr []T, filter func(T) bool) (ret []T) {
 	for _, ss := range arr {
@@ -59,4 +63,17 @@ func ArrayCopy[T any](source []T) []T {
 		copy(cpy, source)
 	}
 	return cpy
+}
+
+func SlicePickNRandom[T any](slice []T, n int) []T {
+	if n > len(slice) {
+		n = len(slice) // Cannot pick more elements than available
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	shuffled := make([]T, len(slice))
+	copy(shuffled, slice) // Create a copy to avoid modifying the original
+	r.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+	return shuffled[:n]
 }

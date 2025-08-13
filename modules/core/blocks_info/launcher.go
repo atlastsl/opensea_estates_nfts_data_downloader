@@ -3,7 +3,7 @@ package blocks_info
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/helpers"
 	"reflect"
 	"strings"
@@ -14,7 +14,7 @@ import (
 const BlocksInfoArguments = "blocks_info"
 
 type BlocksInfoAddDataGetter struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x BlocksInfoAddDataGetter) FetchData(worker *multithread.Worker) {
@@ -27,7 +27,7 @@ func (x BlocksInfoAddDataGetter) FetchData(worker *multithread.Worker) {
 }
 
 type BlocksInfoMainDataGetter struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x BlocksInfoMainDataGetter) FetchData(worker *multithread.Worker) {
@@ -42,7 +42,7 @@ func (x BlocksInfoMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Connection to database OK!")
 
 	worker.LoggingExtra("Fetching distinct block number from database...")
-	data, err := getBlockNumbers(x.Collection, databaseInstance)
+	data, err := getBlockNumbers(x.Metaverse, databaseInstance)
 	worker.LoggingExtra("Fetching distinct block number from database OK. Publishing data...")
 
 	multithread.PublishDataNotification(worker, "-", helpers.AnytiseData(data), err)
@@ -51,7 +51,7 @@ func (x BlocksInfoMainDataGetter) FetchData(worker *multithread.Worker) {
 }
 
 type BlocksInfoDataParser struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x BlocksInfoDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
@@ -76,7 +76,7 @@ func (x BlocksInfoDataParser) ParseData(worker *multithread.Worker, wg *sync.Wai
 						blockNumbers := mainData.([]uint64)
 						blockchain := strings.Split(task, "_")[0]
 
-						err := parseBlockTimestamps(blockNumbers, blockchain, x.Collection, wg)
+						err := parseBlockTimestamps(blockNumbers, blockchain, x.Metaverse, wg)
 
 						multithread.PublishTaskDoneNotification(worker, task, err)
 
@@ -90,11 +90,11 @@ func (x BlocksInfoDataParser) ParseData(worker *multithread.Worker, wg *sync.Wai
 	}
 }
 
-func Launch(collection string, nbParsers int) {
+func Launch(metaverse string, nbParsers int) {
 
-	addDataJob := &BlocksInfoAddDataGetter{Collection: collections.Collection(collection)}
-	mainDataJob := &BlocksInfoMainDataGetter{Collection: collections.Collection(collection)}
-	parserJob := &BlocksInfoDataParser{Collection: collections.Collection(collection)}
+	addDataJob := &BlocksInfoAddDataGetter{Metaverse: metaverses.MetaverseName(metaverse)}
+	mainDataJob := &BlocksInfoMainDataGetter{Metaverse: metaverses.MetaverseName(metaverse)}
+	parserJob := &BlocksInfoDataParser{Metaverse: metaverses.MetaverseName(metaverse)}
 
 	workTitle := "Blocks Info (Timestamp) Downloader"
 	workerTitles := []string{
@@ -109,7 +109,7 @@ func Launch(collection string, nbParsers int) {
 	}
 
 	multithread.Launch(
-		collections.Collection(collection),
+		metaverse,
 		addDataJob,
 		mainDataJob,
 		parserJob,

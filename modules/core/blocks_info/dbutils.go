@@ -3,7 +3,7 @@ package blocks_info
 import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/helpers"
 	"errors"
@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-func getDistinctBlockNumbersForBlockchain(collection collections.Collection, blockchain string, dbInstance *mongo.Database) ([]uint64, error) {
+func getDistinctBlockNumbersForBlockchain(metaverse metaverses.MetaverseName, blockchain string, dbInstance *mongo.Database) ([]uint64, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	matchStage := bson.D{
-		{"$match", bson.D{{"collection", string(collection)}, {"blockchain", blockchain}}},
+		{"$match", bson.D{{"metaverse", string(metaverse)}, {"blockchain", blockchain}, {"block_timestamp", nil}}},
 	}
 	groupStage := bson.D{
 		{"$group", bson.D{
@@ -63,9 +63,9 @@ func getDistinctBlockNumbersForBlockchain(collection collections.Collection, blo
 	return blockNumbers, nil
 }
 
-func getDistinctBlockNumbersFromDatabase(collection collections.Collection, dbInstance *mongo.Database) (map[string][]uint64, error) {
+func getDistinctBlockNumbersFromDatabase(metaverse metaverses.MetaverseName, dbInstance *mongo.Database) (map[string][]uint64, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
-	blockchainRes, err := dbCollection.Distinct(context.Background(), "blockchain", bson.M{"collection": string(collection)})
+	blockchainRes, err := dbCollection.Distinct(context.Background(), "blockchain", bson.M{"metaverse": string(metaverse)})
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func getDistinctBlockNumbersFromDatabase(collection collections.Collection, dbIn
 
 	results := make(map[string][]uint64)
 	for _, blockchain := range blockchains {
-		blockNumbers, err := getDistinctBlockNumbersForBlockchain(collection, blockchain, dbInstance)
+		blockNumbers, err := getDistinctBlockNumbersForBlockchain(metaverse, blockchain, dbInstance)
 		if err != nil {
 			return nil, err
 		}
@@ -85,13 +85,13 @@ func getDistinctBlockNumbersFromDatabase(collection collections.Collection, dbIn
 	return results, nil
 }
 
-func saveBlockTimestampInDatabase(blockInfos []*helpers.EthBlockInfo, collection collections.Collection, dbInstance *mongo.Database) error {
+func saveBlockTimestampInDatabase(blockInfos []*helpers.EthBlockInfo, metaverse metaverses.MetaverseName, dbInstance *mongo.Database) error {
 	if blockInfos != nil && len(blockInfos) > 0 {
 		dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 
 		operations := make([]mongo.WriteModel, len(blockInfos))
 		for i, info := range blockInfos {
-			var filterPayload = bson.M{"collection": collection, "block_number": info.BlockNumber}
+			var filterPayload = bson.M{"metaverse": metaverse, "block_number": info.BlockNumber}
 			var updatePayload = bson.M{"$set": bson.M{"block_timestamp": info.BlockTimestamp, "updated_at": time.Now()}}
 			operations[i] = mongo.NewUpdateManyModel().SetFilter(filterPayload).SetUpdate(updatePayload).SetUpsert(false)
 		}

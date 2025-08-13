@@ -2,17 +2,17 @@ package transactions_hashes
 
 import (
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/helpers"
 	"slices"
 	"sync"
 )
 
-func parseEthEventLog(eventLog *helpers.EthEventLog, collection collections.Collection) *TransactionHash {
+func parseEthEventLog(eventLog *helpers.EthEventLog, metaverse metaverses.MetaverseName) *TransactionHash {
 	blockNumber, _ := helpers.HexConvertToInt(*eventLog.BlockNumber)
 	txHash := &TransactionHash{}
 	txHash.Blockchain = *eventLog.Blockchain
-	txHash.Collection = string(collection)
+	txHash.Metaverse = string(metaverse)
 	txHash.TransactionHash = *eventLog.TransactionHash
 	txHash.BlockHash = *eventLog.BlockHash
 	txHash.BlockNumber = blockNumber
@@ -41,11 +41,11 @@ func saveParsedEvents(transactionHashes []*TransactionHash) error {
 	return err
 }
 
-func parseEthEventsRes(eventsLogs []*helpers.EthEventLog, collection collections.Collection, wg *sync.WaitGroup) error {
+func parseEthEventsRes(eventsLogs []*helpers.EthEventLog, metaverse metaverses.MetaverseName, wg *sync.WaitGroup) error {
 	filtered := filterEthEventLogs(eventsLogs)
 
 	transactionHashes := helpers.ArrayMap(filtered, func(t *helpers.EthEventLog) (bool, *TransactionHash) {
-		return true, parseEthEventLog(t, collection)
+		return true, parseEthEventLog(t, metaverse)
 	}, true, nil)
 
 	wg.Add(1)

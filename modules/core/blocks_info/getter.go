@@ -1,7 +1,7 @@
 package blocks_info
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"math"
@@ -9,8 +9,8 @@ import (
 
 const PartitionsNbItem = 1000
 
-func getBlockNumbers(collection collections.Collection, dbInstance *mongo.Database) (map[string][]uint64, error) {
-	allDistinctBlocks, err := getDistinctBlockNumbersFromDatabase(collection, dbInstance)
+func getBlockNumbers(metaverse metaverses.MetaverseName, dbInstance *mongo.Database) (map[string][]uint64, error) {
+	allDistinctBlocks, err := getDistinctBlockNumbersFromDatabase(metaverse, dbInstance)
 	if err != nil {
 		return nil, err
 	}

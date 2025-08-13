@@ -3,7 +3,7 @@ package operations
 import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"decentraland_data_downloader/modules/helpers"
@@ -16,10 +16,10 @@ import (
 	"reflect"
 )
 
-func getAssetFromDatabase(collection, contract, assetId string, dbInstance *mongo.Database) (*Asset, error) {
-	asset := &Asset{}
+func getAssetFromDatabase(metaverse, contract, assetId string, dbInstance *mongo.Database) (*metaverses.MetaverseAsset, error) {
+	asset := &metaverses.MetaverseAsset{}
 	dbCollection := database.CollectionInstance(dbInstance, asset)
-	payload := bson.M{"collection": collection, "contract": contract, "asset_id": assetId}
+	payload := bson.M{"metaverse": metaverse, "contract": contract, "asset_id": assetId}
 	err := dbCollection.FirstWithCtx(context.Background(), payload, asset)
 	if err != nil {
 		if !errors.Is(err, mongo.ErrNoDocuments) {
@@ -31,55 +31,10 @@ func getAssetFromDatabase(collection, contract, assetId string, dbInstance *mong
 	return asset, nil
 }
 
-func saveAssetInDatabase(asset *Asset, dbInstance *mongo.Database) error {
-	dbCollection := database.CollectionInstance(dbInstance, asset)
-	payload := bson.M{"collection": asset.Collection, "contract": asset.Contract, "asset_id": asset.AssetId}
-	opts := &options.ReplaceOptions{}
-	_, err := dbCollection.ReplaceOne(context.Background(), payload, asset, opts.SetUpsert(true))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func saveAssetMetadataInDatabase(assetMetadataList []*AssetMetadata, dbInstance *mongo.Database) error {
-	if assetMetadataList != nil && len(assetMetadataList) > 0 {
-		dbCollection := database.CollectionInstance(dbInstance, &AssetMetadata{})
-		operations := make([]mongo.WriteModel, len(assetMetadataList))
-		for i, metadata := range assetMetadataList {
-			payload := bson.M{"collection": metadata.Collection, "asset_contract": metadata.AssetContract, "asset_id": metadata.AssetId}
-			payload["category"] = metadata.Category
-			if metadata.MacroType != "" {
-				payload["macro_type"] = metadata.MacroType
-			}
-			if metadata.MacroSubtype != "" {
-				payload["macro_subtype"] = metadata.MacroSubtype
-			}
-			if !metadata.Date.IsZero() {
-				payload["date"] = metadata.Date
-			}
-			operations[i] = mongo.NewReplaceOneModel().SetFilter(payload).SetReplacement(metadata).SetUpsert(true)
-		}
-		_, err := dbCollection.BulkWrite(context.Background(), operations)
-		return err
-	}
-	return nil
-}
-
-func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.Database) (*collections.CollectionInfo, error) {
-	cltInfo := &collections.CollectionInfo{}
-	dbCollection := database.CollectionInstance(dbInstance, cltInfo)
-	err := dbCollection.FirstWithCtx(context.Background(), bson.M{"name": string(collection)}, cltInfo)
-	if err != nil {
-		return nil, err
-	}
-	return cltInfo, nil
-}
-
-func getDistinctBlocksNumbers(collection string, dbInstance *mongo.Database) ([]*BlockNumberInput, error) {
+func getDistinctBlocksNumbers(metaverse string, dbInstance *mongo.Database) ([]*BlockNumberInput, error) {
 	dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 	matchStage := bson.D{
-		{"$match", bson.D{{"collection", collection}, {"block_number", bson.D{{"$gte", 6675885}}}}},
+		{"$match", bson.D{{"metaverse", metaverse}, {"block_number", bson.D{{"$gte", 6675885}}}}},
 	}
 	groupStage := bson.D{
 		{"$group", bson.D{
@@ -239,41 +194,21 @@ func getTransactionInfoByBlockNumbers(blockNumbers []*BlockNumberInput, dbInstan
 	return result, nil
 }
 
-func getMetadataByEstateAsset(asset *Asset, metadataName string, dbInstance *mongo.Database) (*AssetMetadata, error) {
-	metadataItem := &AssetMetadata{}
-	dbCollection := database.CollectionInstance(dbInstance, metadataItem)
-	payload := bson.M{"collection": asset.Collection, "asset_contract": asset.Contract, "asset_id": asset.AssetId, "name": metadataName}
-	result := dbCollection.FindOne(context.Background(), payload, &options.FindOneOptions{Sort: bson.M{"date": -1}})
-	if result.Err() != nil {
-		if !errors.Is(result.Err(), mongo.ErrNoDocuments) {
-			return nil, result.Err()
-		} else {
-			metadataItem = nil
-		}
-	} else {
-		err := result.Decode(metadataItem)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return metadataItem, nil
-}
-
-func getCoordinatesOfLandsByIdentifiers(collection, contract string, identifiers []string, dbInstance *mongo.Database) ([]string, error) {
-	dbCollection := database.CollectionInstance(dbInstance, &Asset{})
-	filterPayload := bson.D{{"collection", collection}, {"contract", contract}, {"asset_id", bson.D{{"$in", helpers.BSONStringA(identifiers)}}}}
+func getCoordinatesOfLandsByIdentifiers(metaverse, contract string, identifiers []string, dbInstance *mongo.Database) ([]string, error) {
+	dbCollection := database.CollectionInstance(dbInstance, &metaverses.MetaverseAsset{})
+	filterPayload := bson.D{{"metaverse", metaverse}, {"contract", contract}, {"asset_id", bson.D{{"$in", helpers.BSONStringA(identifiers)}}}}
 	cursor, err := dbCollection.Find(context.Background(), filterPayload)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(context.Background())
-	results := make([]*Asset, 0)
+	results := make([]*metaverses.MetaverseAsset, 0)
 	err = cursor.All(context.Background(), &results)
 	if err != nil {
 		return nil, err
 	}
-	coords := helpers.ArrayMap(results, func(t *Asset) (bool, string) {
-		return true, fmt.Sprintf("%d,%d", t.X, t.Y)
+	coords := helpers.ArrayMap(results, func(t *metaverses.MetaverseAsset) (bool, string) {
+		return true, t.Location
 	}, true, "")
 	return coords, nil
 }
@@ -284,7 +219,7 @@ func saveOperationsInDatabase(operations []*Operation, dbInstance *mongo.Databas
 
 		bdOperations := make([]mongo.WriteModel, len(operations))
 		for i, operation := range operations {
-			var filterPayload = bson.M{"collection": operation.Collection, "asset_contract": operation.AssetContract, "asset_id": operation.AssetId, "operation_type": operation.OperationType, "transaction_hash": operation.TransactionHash}
+			var filterPayload = bson.M{"metaverse": operation.Metaverse, "asset_contract": operation.AssetContract, "asset_id": operation.AssetId, "operation_type": operation.OperationType, "transaction_hash": operation.TransactionHash}
 			bdOperations[i] = mongo.NewReplaceOneModel().SetFilter(filterPayload).SetReplacement(operation).SetUpsert(true)
 		}
 		_, err := dbCollection.BulkWrite(context.Background(), bdOperations)
@@ -294,16 +229,16 @@ func saveOperationsInDatabase(operations []*Operation, dbInstance *mongo.Databas
 	return nil
 }
 
-func getCurrencies(dbInstance *mongo.Database) (map[string]*collections.Currency, error) {
-	dbCollection := database.CollectionInstance(dbInstance, &collections.Currency{})
+func getCurrencies(dbInstance *mongo.Database) (map[string]*metaverses.Currency, error) {
+	dbCollection := database.CollectionInstance(dbInstance, &metaverses.Currency{})
 	cursor, err := dbCollection.Find(context.Background(), bson.D{})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(context.Background())
-	results := make(map[string]*collections.Currency, 0)
+	results := make(map[string]*metaverses.Currency, 0)
 	for cursor.Next(context.Background()) {
-		currency := &collections.Currency{}
+		currency := &metaverses.Currency{}
 		err = cursor.Decode(currency)
 		if err != nil {
 			return nil, err
@@ -313,8 +248,8 @@ func getCurrencies(dbInstance *mongo.Database) (map[string]*collections.Currency
 	return results, nil
 }
 
-func getCurrencyPrices(dbInstance *mongo.Database) (map[string][]*collections.CurrencyPrice, error) {
-	curCollection := database.CollectionInstance(dbInstance, &collections.Currency{})
+func getCurrencyPrices(dbInstance *mongo.Database) (map[string][]*metaverses.CurrencyPrice, error) {
+	curCollection := database.CollectionInstance(dbInstance, &metaverses.Currency{})
 	rawCurrencies, err := curCollection.Distinct(context.Background(), "symbols", bson.M{})
 	if err != nil {
 		return nil, err
@@ -323,15 +258,15 @@ func getCurrencyPrices(dbInstance *mongo.Database) (map[string][]*collections.Cu
 	for _, currency := range rawCurrencies {
 		currencies = append(currencies, currency.(string))
 	}
-	dbCollection := database.CollectionInstance(dbInstance, &collections.CurrencyPrice{})
+	dbCollection := database.CollectionInstance(dbInstance, &metaverses.CurrencyPrice{})
 
-	prices := make(map[string][]*collections.CurrencyPrice)
+	prices := make(map[string][]*metaverses.CurrencyPrice)
 	for _, currency := range currencies {
 		cursor, err := dbCollection.Find(context.Background(), bson.M{"currency": currency}, &options.FindOptions{Sort: bson.M{"start": 1}})
 		if err != nil {
 			return nil, nil
 		}
-		currencyPrices := make([]*collections.CurrencyPrice, 0)
+		currencyPrices := make([]*metaverses.CurrencyPrice, 0)
 		err = cursor.All(context.Background(), &currencyPrices)
 		if err != nil {
 			return nil, nil
@@ -341,6 +276,30 @@ func getCurrencyPrices(dbInstance *mongo.Database) (map[string][]*collections.Cu
 	}
 
 	return prices, nil
+}
+
+func getUpdatableAttrOfAsset(asset *metaverses.MetaverseAsset, attrName string, dbInstance *mongo.Database) (*AssetChange, error) {
+	operation := &Operation{}
+	var currentValue *AssetChange
+	dbCollection := database.CollectionInstance(dbInstance, operation)
+	var filterPayload = bson.M{"metaverse": asset.Metaverse, "asset_contract": asset.Contract, "asset_id": asset.AssetId, "asset_changes": bson.M{"attr_name": attrName}}
+	result := dbCollection.FindOne(context.Background(), filterPayload, &options.FindOneOptions{Sort: bson.M{"date": -1}})
+	if result.Err() != nil {
+		if !errors.Is(result.Err(), mongo.ErrNoDocuments) {
+			return nil, result.Err()
+		}
+	} else {
+		err := result.Decode(operation)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, change := range operation.AssetChanges {
+		if change.AttrName == attrName {
+			currentValue = &change
+		}
+	}
+	return currentValue, nil
 }
 
 //func fetchTileMacroDistances(collection collections.Collection, contract string, dbInstance *mongo.Database) ([]*tiles_distances.MapTileMacroDistance, error) {

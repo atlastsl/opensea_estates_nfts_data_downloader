@@ -3,7 +3,7 @@ package operations
 import (
 	"decentraland_data_downloader/modules/app/database"
 	"decentraland_data_downloader/modules/app/multithread"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/helpers"
 	"fmt"
 	"reflect"
@@ -14,7 +14,7 @@ import (
 const OperationArgument = "operations"
 
 type OperationAddDataGetter struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x OperationAddDataGetter) FetchData(worker *multithread.Worker) {
@@ -32,7 +32,7 @@ func (x OperationAddDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Connection to database OK!")
 
 	worker.LoggingExtra("Fetching Additional Data from database...")
-	data, err = getAdditionalData(x.Collection, databaseInstance)
+	data, err = getAdditionalData(x.Metaverse, databaseInstance)
 	worker.LoggingExtra("Fetching Additional Data from database OK. Publishing data...")
 
 	multithread.PublishDataNotification(worker, "-", data, err)
@@ -40,7 +40,7 @@ func (x OperationAddDataGetter) FetchData(worker *multithread.Worker) {
 }
 
 type OperationMainDataGetter struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x OperationMainDataGetter) FetchData(worker *multithread.Worker) {
@@ -55,7 +55,7 @@ func (x OperationMainDataGetter) FetchData(worker *multithread.Worker) {
 	worker.LoggingExtra("Connection to database OK!")
 
 	worker.LoggingExtra("Get Distinct block numbers of transactions...")
-	blockNumbers, err := getDistinctBlocksNumbers(string(x.Collection), databaseInstance)
+	blockNumbers, err := getDistinctBlocksNumbers(string(x.Metaverse), databaseInstance)
 	if err != nil {
 		worker.LoggingError("Failed to Get Distinct block numbers of transactions !", err)
 		return
@@ -85,7 +85,7 @@ func (x OperationMainDataGetter) FetchData(worker *multithread.Worker) {
 }
 
 type OperationDataParser struct {
-	Collection collections.Collection
+	Metaverse metaverses.MetaverseName
 }
 
 func (x OperationDataParser) ParseData(worker *multithread.Worker, wg *sync.WaitGroup) {
@@ -132,11 +132,11 @@ func (x OperationDataParser) ParseData(worker *multithread.Worker, wg *sync.Wait
 	}
 }
 
-func Launch(collection string, nbParsers int) {
+func Launch(metaverse string, nbParsers int) {
 
-	addDataJob := &OperationAddDataGetter{Collection: collections.Collection(collection)}
-	mainDataJob := &OperationMainDataGetter{Collection: collections.Collection(collection)}
-	parserJob := &OperationDataParser{Collection: collections.Collection(collection)}
+	addDataJob := &OperationAddDataGetter{Metaverse: metaverses.MetaverseName(metaverse)}
+	mainDataJob := &OperationMainDataGetter{Metaverse: metaverses.MetaverseName(metaverse)}
+	parserJob := &OperationDataParser{Metaverse: metaverses.MetaverseName(metaverse)}
 
 	workTitle := "Operations History Builder"
 	workerTitles := []string{
@@ -145,13 +145,13 @@ func Launch(collection string, nbParsers int) {
 		"Transaction Infos et Logs --> Operations, Assets & Metadata history converter",
 	}
 	workerDescriptions := []string{
-		"Get collection info, currencies data & tiles distances from database",
+		"Get metaverse info, currencies data & tiles distances from database",
 		"Get transactions infos & logs from database",
 		"Process transaction infos & logs to calculate operations history & assets data history",
 	}
 
 	multithread.Launch(
-		collections.Collection(collection),
+		metaverse,
 		addDataJob,
 		mainDataJob,
 		parserJob,

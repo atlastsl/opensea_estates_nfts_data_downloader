@@ -2,7 +2,7 @@ package operations
 
 import (
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 )
 
 func TestOperations() {
@@ -12,8 +12,8 @@ func TestOperations() {
 	}
 	defer database.CloseDatabaseConnection(dbInstance)
 
-	collection := collections.CollectionDcl
-	additionalData, err := getAdditionalData(collection, dbInstance)
+	metaverse := metaverses.MetaverseDcl
+	additionalData, err := getAdditionalData(metaverse, dbInstance)
 	if err != nil {
 		panic(err)
 	}

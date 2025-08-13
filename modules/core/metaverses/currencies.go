@@ -1,4 +1,4 @@
-package collections
+package metaverses
 
 import (
 	"context"
@@ -351,7 +351,8 @@ func downloadCurrencyPrices(currency *Currency) []*CurrencyPrice {
 	dateEnd := time.Now().Format(time.DateOnly)
 	baseUrl := fmt.Sprintf("https://coincodex.com/api/coincodexcoins/get_historical_data_by_slug/%s/2005-01-01/%s/1", currency.PriceSlug, dateEnd)
 
-	result, err := helpers.FetchData(baseUrl, "")
+	result := make(map[string]any)
+	err := helpers.FetchData(baseUrl, "", &result)
 	if err != nil {
 		log.Fatal("Unable to download prices for currency "+currency.Name, err)
 	}

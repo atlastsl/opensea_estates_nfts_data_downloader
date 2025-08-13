@@ -3,9 +3,8 @@ package main
 import (
 	"decentraland_data_downloader/modules/app/multithread"
 	"decentraland_data_downloader/modules/core/blocks_info"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/core/operations"
-	"decentraland_data_downloader/modules/core/tiles"
-	"decentraland_data_downloader/modules/core/tiles_distances"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"flag"
@@ -27,7 +26,7 @@ func showUsageAndExit(exitCode int) {
 
 func readFlags() (*string, *string, *int, bool) {
 	var collection = flag.String("x", "", "Collection (Decentraland | TheSandbox)")
-	var dataType = flag.String("t", "", "Data Type (tiles | parcels | estates)")
+	var dataType = flag.String("t", "", "Data Type (metaverse | tx_hashes | blocks_info | tx_info | operations)")
 	var nbParsers = flag.Int("n", 1, "Nb Parsers (>0)")
 	var envFilePath = flag.String("c", ".env", "Env File Path")
 	log.SetFlags(0)
@@ -39,9 +38,10 @@ func readFlags() (*string, *string, *int, bool) {
 	// go run main.go -x decentraland -t ops_events -n 1
 	// go run main.go -x decentraland -t movements -n 1
 	// go run main.go -x decentraland -t tx_logs -n 1
-
 	// go run main.go -x decentraland -t tiles -n 1
 	// go run main.go -x decentraland -t tiles_distances -n 1
+
+	// go run main.go -x decentraland -t metaverse -n 1
 	// go run main.go -x decentraland -t tx_hashes -n 1
 	// go run main.go -x decentraland -t blocks_info -n 1
 	// go run main.go -x decentraland -t tx_info -n 1
@@ -74,10 +74,8 @@ func main() {
 	if !ok {
 		os.Exit(0)
 	}
-	if *dataType == tiles.TileArgument {
-		tiles.Launch(strings.ToLower(*collection), *nbParsers)
-	} else if *dataType == tiles_distances.TileDistancesArgument {
-		tiles_distances.Launch(strings.ToLower(*collection), *nbParsers)
+	if *dataType == metaverses.MetaverseArgument {
+		metaverses.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == transactions_hashes.TxHashesArguments {
 		transactions_hashes.Launch(strings.ToLower(*collection), *nbParsers)
 	} else if *dataType == blocks_info.BlocksInfoArguments {

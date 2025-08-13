@@ -1,7 +1,7 @@
 package operations
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/core/transactions_infos"
 	"decentraland_data_downloader/modules/helpers"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -11,7 +11,7 @@ import (
 )
 
 type assetUpdate struct {
-	collection string
+	metaverse  string
 	contract   string
 	identifier string
 	newOwner   string
@@ -20,17 +20,24 @@ type assetUpdate struct {
 	operations []primitive.ObjectID
 }
 
+type assetUpdateFormatted struct {
+	metaverse   string
+	contract    string
+	identifier  string
+	assetChange *AssetChange
+}
+
 const (
-	filterTxLogsInfoColAssetTransfers = "CollectionAssetsTransfers"
-	filterTxLogsInfoColAssetInter     = "CollectionAssetsInter"
-	filterTxLogsInfoColAssetAll       = "CollectionAssetsAll"
+	filterTxLogsInfoColAssetTransfers = "MetaverseAssetsTransfers"
+	filterTxLogsInfoColAssetInter     = "MetaverseAssetsInter"
+	filterTxLogsInfoColAssetAll       = "MetaverseAssetsAll"
 	filterTxLogsInfoAllAssetTransfers = "AllAssetsTransfers"
 	filterTxLogsInfoMoneyTransfers    = "MoneyTransfers"
 )
 
-func safeGetAssetForParser(collection, contract, assetId string, allAssets []*Asset) *Asset {
-	index := slices.IndexFunc(allAssets, func(asset *Asset) bool {
-		return asset.Collection == collection && asset.Contract == contract && asset.AssetId == assetId
+func safeGetAssetForParser(metaverse, contract, assetId string, allAssets []*metaverses.MetaverseAsset) *metaverses.MetaverseAsset {
+	index := slices.IndexFunc(allAssets, func(asset *metaverses.MetaverseAsset) bool {
+		return asset.Metaverse == metaverse && asset.Contract == contract && asset.AssetId == assetId
 	})
 	if index < 0 {
 		return nil
@@ -39,7 +46,21 @@ func safeGetAssetForParser(collection, contract, assetId string, allAssets []*As
 	}
 }
 
-func getCurrenciesAddresses(currencies map[string]*collections.Currency) []string {
+func safeGetAssetUpdatesForParser(metaverse, contract, assetId string, allFUpdates []*assetUpdateFormatted) []AssetChange {
+	filtered := helpers.ArrayFilter(allFUpdates, func(assetFUpdates *assetUpdateFormatted) bool {
+		return assetFUpdates.metaverse == metaverse && assetFUpdates.contract == contract && assetFUpdates.identifier == assetId
+	})
+	assetChangesPtr := helpers.ArrayMap(filtered, func(t *assetUpdateFormatted) (bool, *AssetChange) {
+		return true, t.assetChange
+	}, true, nil)
+	assetChanges := make([]AssetChange, len(assetChangesPtr))
+	for i := range assetChangesPtr {
+		assetChanges[i] = *assetChangesPtr[i]
+	}
+	return assetChanges
+}
+
+func getCurrenciesAddresses(currencies map[string]*metaverses.Currency) []string {
 	addresses := make([]string, 0)
 	for _, currency := range currencies {
 		if !slices.Contains(addresses, strings.ToLower(currency.Contract)) {
@@ -109,19 +130,19 @@ func filterTransactionLogsInfo(txLogsInfos []*TransactionLogInfo, filterName str
 	filtered = make([]*TransactionLogInfo, 0)
 	if filterName == filterTxLogsInfoColAssetTransfers {
 		for _, info := range txLogsInfos {
-			if info.EventName == os.Getenv("ETH_TRANSFER_LOG_ASSET") && info.IsCollectionAsset {
+			if info.EventName == os.Getenv("ETH_TRANSFER_LOG_ASSET") && info.IsMetaverseAsset {
 				filtered = append(filtered, info)
 			}
 		}
 	} else if filterName == filterTxLogsInfoColAssetInter {
 		for _, info := range txLogsInfos {
-			if info.EventName != os.Getenv("ETH_TRANSFER_LOG_ASSET") && info.IsCollectionAsset {
+			if info.EventName != os.Getenv("ETH_TRANSFER_LOG_ASSET") && info.IsMetaverseAsset {
 				filtered = append(filtered, info)
 			}
 		}
 	} else if filterName == filterTxLogsInfoColAssetAll {
 		for _, info := range txLogsInfos {
-			if info.IsCollectionAsset {
+			if info.IsMetaverseAsset {
 				filtered = append(filtered, info)
 			}
 		}
@@ -144,20 +165,20 @@ func filterTransactionLogsInfo(txLogsInfos []*TransactionLogInfo, filterName str
 	return filtered
 }
 
-func extractLogInfosForTxLogItem(txLog *transactions_infos.TransactionLog, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency) *TransactionLogInfo {
+func extractLogInfosForTxLogItem(txLog *transactions_infos.TransactionLog, mtvInfo *metaverses.MetaverseInfo, currencies map[string]*metaverses.Currency) *TransactionLogInfo {
 	topics := txLog.Topics
 	address := txLog.Address
 	blockchain := txLog.Blockchain
 	data := txLog.Data
 	eventHex := topics[0]
 	var logInfo *TransactionLogInfo
-	if cltInfo.HasAsset(address, blockchain) {
-		logTopic := cltInfo.GetLogTopic(address, blockchain, eventHex)
+	if mtvInfo.HasAsset(address, blockchain) {
+		logTopic := mtvInfo.GetLogTopic(address, blockchain, eventHex)
 		if logTopic != nil {
 			logInfo = &TransactionLogInfo{}
 			logInfo.EventName = logTopic.Name
-			logInfo.IsCollectionAsset = true
-			if collections.Collection(cltInfo.Name) == collections.CollectionDcl {
+			logInfo.IsMetaverseAsset = true
+			if metaverses.MetaverseName(mtvInfo.Name) == metaverses.MetaverseDcl {
 				if logTopic.Name == os.Getenv("ETH_TRANSFER_LOG_ASSET") {
 					logInfo.From = helpers.HexRemoveLeadingZeros(topics[1])
 					logInfo.To = helpers.HexRemoveLeadingZeros(topics[2])
@@ -187,7 +208,7 @@ func extractLogInfosForTxLogItem(txLog *transactions_infos.TransactionLog, cltIn
 				logInfo.EventName = os.Getenv("ETH_TRANSFER_LOG_ASSET")
 				logInfo.From = helpers.HexRemoveLeadingZeros(topics[1])
 				logInfo.To = helpers.HexRemoveLeadingZeros(topics[2])
-				logInfo.IsCollectionAsset = false
+				logInfo.IsMetaverseAsset = false
 				if len(topics) == 4 {
 					logInfo.Asset, _ = helpers.HexConvertToString(topics[3])
 				} else {
@@ -202,10 +223,10 @@ func extractLogInfosForTxLogItem(txLog *transactions_infos.TransactionLog, cltIn
 	return logInfo
 }
 
-func extractLogInfos(txLogs []*transactions_infos.TransactionLog, cltInfo *collections.CollectionInfo, currencies map[string]*collections.Currency) []*TransactionLogInfo {
+func extractLogInfos(txLogs []*transactions_infos.TransactionLog, mtvInfo *metaverses.MetaverseInfo, currencies map[string]*metaverses.Currency) []*TransactionLogInfo {
 	logInfos := make([]*TransactionLogInfo, 0)
 	for _, txLog := range txLogs {
-		logInfo := extractLogInfosForTxLogItem(txLog, cltInfo, currencies)
+		logInfo := extractLogInfosForTxLogItem(txLog, mtvInfo, currencies)
 		if logInfo != nil {
 			logInfos = append(logInfos, logInfo)
 		}
@@ -242,7 +263,7 @@ func getNumberOfAssetsTransacted(txLogsInfo []*TransactionLogInfo, assetsReceive
 	return len(assets)
 }
 
-func getTransferMoneyLogsOnAssetsReceivers(txLogsInfo []*TransactionLogInfo, assetsReceivers []string, currencies map[string]*collections.Currency) []*TransactionLogInfo {
+func getTransferMoneyLogsOnAssetsReceivers(txLogsInfo []*TransactionLogInfo, assetsReceivers []string, currencies map[string]*metaverses.Currency) []*TransactionLogInfo {
 	currenciesAddresses := getCurrenciesAddresses(currencies)
 	transferMoneyLogsInfos := filterTransactionLogsInfo(txLogsInfo, filterTxLogsInfoMoneyTransfers)
 	filteredLogsInfos := make([]*TransactionLogInfo, 0)

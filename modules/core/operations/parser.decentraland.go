@@ -1,64 +1,60 @@
 package operations
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
-	"decentraland_data_downloader/modules/core_old/assets"
-	"decentraland_data_downloader/modules/helpers"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"math"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 )
 
-func dclGetDistanceByLandsCoords(coords []string, focalZones []*MapFocalZone) []*MapFocalZoneDistance {
-	if focalZones != nil && len(focalZones) > 0 {
-		filteredDistances := make([]*MapFocalZoneDistance, len(focalZones))
-		for i, focalZone := range focalZones {
-			minD := math.MaxInt
-			minDistance := new(MapFocalZoneDistance)
-			if len(coords) > 0 {
-				for _, coord := range coords {
-					cDistance := calculateDistanceToFocalZone2(coord, focalZone)
-					if cDistance.ManDis < minD {
-						minD = cDistance.ManDis
-						minDistance = cDistance
-					}
-				}
-			} else {
-				minDistance = &MapFocalZoneDistance{
-					FocalZone: focalZone,
-					ManDis:    -1,
-				}
-			}
-			filteredDistances[i] = minDistance
-		}
-		return filteredDistances
-	}
-	return make([]*MapFocalZoneDistance, 0)
-}
+//func dclGetDistanceByLandsCoords(coords []string, focalZones []*MapFocalZone) []*MapFocalZoneDistance {
+//	if focalZones != nil && len(focalZones) > 0 {
+//		filteredDistances := make([]*MapFocalZoneDistance, len(focalZones))
+//		for i, focalZone := range focalZones {
+//			minD := math.MaxInt
+//			minDistance := new(MapFocalZoneDistance)
+//			if len(coords) > 0 {
+//				for _, coord := range coords {
+//					cDistance := calculateDistanceToFocalZone2(coord, focalZone)
+//					if cDistance.ManDis < minD {
+//						minD = cDistance.ManDis
+//						minDistance = cDistance
+//					}
+//				}
+//			} else {
+//				minDistance = &MapFocalZoneDistance{
+//					FocalZone: focalZone,
+//					ManDis:    -1,
+//				}
+//			}
+//			filteredDistances[i] = minDistance
+//		}
+//		return filteredDistances
+//	}
+//	return make([]*MapFocalZoneDistance, 0)
+//}
 
-func dclSafeGetEstateAssetUpdate(updates *[]*assetUpdate, collection, contract, identifier string) *assetUpdate {
+func dclSafeGetEstateAssetUpdate(updates *[]*assetUpdate, metaverse, contract, identifier string) *assetUpdate {
 	i := slices.IndexFunc(*updates, func(item *assetUpdate) bool {
-		return item.collection == collection && item.contract == contract && item.identifier == identifier
+		return item.metaverse == metaverse && item.contract == contract && item.identifier == identifier
 	})
 	if i >= 0 {
 		return (*updates)[i]
 	} else {
-		newUpdate := &assetUpdate{collection: collection, contract: contract, identifier: identifier, newOwner: "", outLands: []string{}, inLands: []string{}, operations: []primitive.ObjectID{}}
+		newUpdate := &assetUpdate{metaverse: metaverse, contract: contract, identifier: identifier, newOwner: "", outLands: []string{}, inLands: []string{}, operations: []primitive.ObjectID{}}
 		*updates = append(*updates, newUpdate)
 		return newUpdate
 	}
 }
 
-func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *collections.CollectionInfo) (updates []*assetUpdate) {
-	landInfo := cltInfo.GetAsset("land")
-	estateInfo := cltInfo.GetAsset("estate")
+func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, mvtInfo *metaverses.MetaverseInfo) (updates []*assetUpdate) {
+	landInfo := mvtInfo.GetAsset("land")
+	estateInfo := mvtInfo.GetAsset("estate")
 	addLandTopic := os.Getenv("ETH_TRANSFER_LOG_DCL_ADD_LAND")
 	removeLandTopic := os.Getenv("ETH_TRANSFER_LOG_DCL_RMV_LAND")
 
@@ -88,13 +84,13 @@ func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *
 					// Get estate receiver
 					estate := interAstLogsInfos[j].Estate
 					// Safe initialize updates for estate to be modified (estate receiver)
-					estateUpdate := dclSafeGetEstateAssetUpdate(&updates, string(collections.CollectionDcl), estateInfo.Contract, estate)
+					estateUpdate := dclSafeGetEstateAssetUpdate(&updates, string(metaverses.MetaverseDcl), estateInfo.Contract, estate)
 					// Record "new land added" update for receiver estate
 					estateUpdate.inLands = append(estateUpdate.inLands, assetId)
 					// Record "operation" which make updates
 					estateUpdate.operations = append(estateUpdate.operations, logInfo.TransactionLog.ID)
 					// Safe initialize updates for moved land (assetId)
-					landUpdate := dclSafeGetEstateAssetUpdate(&updates, string(collections.CollectionDcl), landInfo.Contract, assetId)
+					landUpdate := dclSafeGetEstateAssetUpdate(&updates, string(metaverses.MetaverseDcl), landInfo.Contract, assetId)
 					// Record "new owner" update for moved land (assetId)
 					landUpdate.newOwner = fmt.Sprintf("estate-%s", estate)
 					// Record "operation" which make updates
@@ -117,13 +113,13 @@ func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *
 					// Get estate sender
 					estate := interAstLogsInfos[j].Estate
 					// Safe initialize updates for estate to be modified (estate sender)
-					estateUpdate := dclSafeGetEstateAssetUpdate(&updates, string(collections.CollectionDcl), estateInfo.Contract, estate)
+					estateUpdate := dclSafeGetEstateAssetUpdate(&updates, string(metaverses.MetaverseDcl), estateInfo.Contract, estate)
 					// Record "land removed" update for sender estate
 					estateUpdate.outLands = append(estateUpdate.outLands, assetId)
 					// Record "operation" which make updates
 					estateUpdate.operations = append(estateUpdate.operations, logInfo.TransactionLog.ID)
 					// Safe initialize updates for moved land (assetId)
-					landUpdate := dclSafeGetEstateAssetUpdate(&updates, string(collections.CollectionDcl), landInfo.Contract, assetId)
+					landUpdate := dclSafeGetEstateAssetUpdate(&updates, string(metaverses.MetaverseDcl), landInfo.Contract, assetId)
 					// Record "new owner" update for moved land (assetId)
 					landUpdate.newOwner = receiver
 					// Record "operation" which make updates
@@ -134,7 +130,7 @@ func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *
 			}
 		}
 		// Safe initialize updates for moved land (assetId)
-		assetUpdate_ := dclSafeGetEstateAssetUpdate(&updates, string(collections.CollectionDcl), contract, assetId)
+		assetUpdate_ := dclSafeGetEstateAssetUpdate(&updates, string(metaverses.MetaverseDcl), contract, assetId)
 		// Record "new owner" update for moved land (assetId)
 		assetUpdate_.newOwner = receiver
 		// Record "operation" which make updates
@@ -177,16 +173,16 @@ func dclConvertTxLogsToAssetUpdates(txLogsInfos []*TransactionLogInfo, cltInfo *
 //	return results
 //}
 
-func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*Asset, blockTimestamp time.Time, cltInfo *collections.CollectionInfo, focalZones []*MapFocalZone, dbInstance *mongo.Database) ([]*AssetMetadata, error) {
+func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*metaverses.MetaverseAsset, mtvInfo *metaverses.MetaverseInfo, dbInstance *mongo.Database) ([]*assetUpdateFormatted, error) {
 
-	estateInfo := cltInfo.GetAsset("estate")
-	landInfo := cltInfo.GetAsset("land")
+	estateInfo := mtvInfo.GetAsset("estate")
+	landInfo := mtvInfo.GetAsset("land")
 
 	// instantiate metadata return list
-	metadataList := make([]*AssetMetadata, 0)
+	assetsUpdatesFList := make([]*assetUpdateFormatted, 0)
 
 	// get estate asset related to updates in allAssets list
-	asset := safeGetAssetForParser(updates.collection, updates.contract, updates.identifier, allAssets)
+	asset := safeGetAssetForParser(updates.metaverse, updates.contract, updates.identifier, allAssets)
 	if asset == nil {
 		return nil, errors.New(fmt.Sprintf("{dclSaveUpdatesItemAsMetadata} estate asset not found {{%s - %s}}", updates.contract, updates.identifier))
 	}
@@ -197,7 +193,7 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 		if (updates.outLands != nil && len(updates.outLands) > 0) || (updates.inLands != nil && len(updates.inLands) > 0) {
 			// 1. Update Metadata Lands
 			// get estate lands metadata
-			aeLandsMtd, err := getMetadataByEstateAsset(asset, assets.MetadataTypeLands, dbInstance)
+			aeLandsMtd, err := getUpdatableAttrOfAsset(asset, metaverses.MtvAssetAttrNameLands, dbInstance)
 			if err != nil {
 				return nil, err
 			}
@@ -209,7 +205,7 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 			// we must remove some lands
 			if updates.outLands != nil && len(updates.outLands) > 0 {
 				// Get coordinates of lands to remove from estate
-				coords, err := getCoordinatesOfLandsByIdentifiers(updates.collection, landInfo.Contract, updates.outLands, dbInstance)
+				coords, err := getCoordinatesOfLandsByIdentifiers(updates.metaverse, landInfo.Contract, updates.outLands, dbInstance)
 				if err != nil {
 					return nil, err
 				}
@@ -221,7 +217,7 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 			// new must add some lands
 			if updates.inLands != nil && len(updates.inLands) > 0 {
 				// Get coordinates of lands to add to estate
-				coords, err := getCoordinatesOfLandsByIdentifiers(updates.collection, landInfo.Contract, updates.inLands, dbInstance)
+				coords, err := getCoordinatesOfLandsByIdentifiers(updates.metaverse, landInfo.Contract, updates.inLands, dbInstance)
 				if err != nil {
 					return nil, err
 				}
@@ -229,40 +225,34 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 				newLands = slices.Concat(newLands, coords)
 			}
 			// update metadata lands content
-			newLandsMtd := &AssetMetadata{
-				Collection:     asset.Collection,
-				AssetRef:       asset.ID,
-				AssetContract:  asset.Contract,
-				AssetId:        asset.AssetId,
-				Category:       MetadataTypeLands,
-				Name:           MetadataNameLands,
-				DisplayName:    MetadataDisNameLands,
-				DataType:       MetadataDataTypeStringArray,
+			newLandsChange := &AssetChange{
+				AttrName:       metaverses.MtvAssetAttrNameLands,
+				AttrDisName:    metaverses.MtvAssetAttrDisNameLands,
+				DataType:       metaverses.MtvAssetAttrDataTypeStringArray,
 				DataTypeParams: map[string]any{"separator": "|"},
 				Value:          strings.Join(newLands, "|"),
-				Date:           blockTimestamp,
-				OperationsRef:  updates.operations,
 			}
-			newLandsMtd.CreatedAt = time.Now()
-			newLandsMtd.UpdatedAt = time.Now()
-			metadataList = append(metadataList, newLandsMtd)
+			newLandsFUpdate := &assetUpdateFormatted{
+				metaverse:   asset.Metaverse,
+				contract:    asset.Contract,
+				identifier:  asset.AssetId,
+				assetChange: newLandsChange,
+			}
+			assetsUpdatesFList = append(assetsUpdatesFList, newLandsFUpdate)
 			// update metadata size
-			newSizeMtd := &AssetMetadata{
-				Collection:    asset.Collection,
-				AssetRef:      asset.ID,
-				AssetContract: asset.Contract,
-				AssetId:       asset.AssetId,
-				Category:      MetadataTypeSize,
-				Name:          MetadataNameSize,
-				DisplayName:   MetadataDisNameSize,
-				DataType:      MetadataDataTypeInteger,
-				Value:         strconv.FormatInt(int64(len(newLands)), 10),
-				Date:          blockTimestamp,
-				OperationsRef: updates.operations,
+			newSizeChange := &AssetChange{
+				AttrName:    metaverses.MtvAssetAttrNameSize,
+				AttrDisName: metaverses.MtvAssetAttrDisNameSize,
+				DataType:    metaverses.MtvAssetAttrDataTypeInteger,
+				Value:       strconv.FormatInt(int64(len(newLands)), 10),
 			}
-			newSizeMtd.CreatedAt = time.Now()
-			newSizeMtd.UpdatedAt = time.Now()
-			metadataList = append(metadataList, newSizeMtd)
+			newSizeFUpdate := &assetUpdateFormatted{
+				metaverse:   asset.Metaverse,
+				contract:    asset.Contract,
+				identifier:  asset.AssetId,
+				assetChange: newSizeChange,
+			}
+			assetsUpdatesFList = append(assetsUpdatesFList, newSizeFUpdate)
 
 			// 2. Update Metadata Distances
 			// Get all distances for new lands
@@ -276,55 +266,52 @@ func dclConvertAssetUpdateToMetadataUpdates(updates *assetUpdate, allAssets []*A
 
 			// 2. Update Metadata Distances
 			// Get all distances for new lands by focal zones
-			newLands = helpers.ArrayFilter(newLands, func(s string) bool {
-				return strings.TrimSpace(s) != ""
-			})
-			distances := dclGetDistanceByLandsCoords(newLands, focalZones)
-			for _, distance := range distances {
-				if distance != nil {
-					newDistanceMtd := &AssetMetadata{
-						Collection:    asset.Collection,
-						AssetRef:      asset.ID,
-						AssetContract: asset.Contract,
-						AssetId:       asset.AssetId,
-						Category:      MetadataTypeDistance,
-						Name:          DistanceMetadataName(distance),
-						DisplayName:   DistanceMetadataDisplayName(distance),
-						DataType:      MetadataDataTypeInteger,
-						Value:         strconv.FormatInt(int64(distance.ManDis), 10),
-						MacroType:     distance.FocalZone.Type,
-						MacroSubtype:  distance.FocalZone.Subtype,
-						Date:          blockTimestamp,
-						OperationsRef: updates.operations,
-					}
-					newDistanceMtd.CreatedAt = time.Now()
-					newDistanceMtd.UpdatedAt = time.Now()
-					metadataList = append(metadataList, newDistanceMtd)
-				}
-			}
+			//newLands = helpers.ArrayFilter(newLands, func(s string) bool {
+			//	return strings.TrimSpace(s) != ""
+			//})
+			//distances := dclGetDistanceByLandsCoords(newLands, focalZones)
+			//for _, distance := range distances {
+			//	if distance != nil {
+			//		newDistanceMtd := &AssetMetadata{
+			//			Collection:    asset.Collection,
+			//			AssetRef:      asset.ID,
+			//			AssetContract: asset.Contract,
+			//			AssetId:       asset.AssetId,
+			//			Category:      MetadataTypeDistance,
+			//			Name:          DistanceMetadataName(distance),
+			//			DisplayName:   DistanceMetadataDisplayName(distance),
+			//			DataType:      MetadataDataTypeInteger,
+			//			Value:         strconv.FormatInt(int64(distance.ManDis), 10),
+			//			MacroType:     distance.FocalZone.Type,
+			//			MacroSubtype:  distance.FocalZone.Subtype,
+			//			Date:          blockTimestamp,
+			//			OperationsRef: updates.operations,
+			//		}
+			//		newDistanceMtd.CreatedAt = time.Now()
+			//		newDistanceMtd.UpdatedAt = time.Now()
+			//		metadataList = append(metadataList, newDistanceMtd)
+			//	}
+			//}
 
 		}
 	}
 
 	// 2. Update Metadata Owner
 	if updates.newOwner != "" {
-		newOwnerMtd := &AssetMetadata{
-			Collection:    asset.Collection,
-			AssetRef:      asset.ID,
-			AssetContract: asset.Contract,
-			AssetId:       asset.AssetId,
-			Category:      MetadataTypeOwner,
-			Name:          MetadataNameOwner,
-			DisplayName:   MetadataDisNameOwner,
-			DataType:      MetadataDataTypeAddress,
-			Value:         updates.newOwner,
-			Date:          blockTimestamp,
-			OperationsRef: updates.operations,
+		newOwnerChange := &AssetChange{
+			AttrName:    metaverses.MtvAssetAttrNameOwner,
+			AttrDisName: metaverses.MtvAssetAttrDisNameOwner,
+			DataType:    metaverses.MtvAssetAttrDataTypeAddress,
+			Value:       updates.newOwner,
 		}
-		newOwnerMtd.CreatedAt = time.Now()
-		newOwnerMtd.UpdatedAt = time.Now()
-		metadataList = append(metadataList, newOwnerMtd)
+		newOwnerFUpdate := &assetUpdateFormatted{
+			metaverse:   asset.Metaverse,
+			contract:    asset.Contract,
+			identifier:  asset.AssetId,
+			assetChange: newOwnerChange,
+		}
+		assetsUpdatesFList = append(assetsUpdatesFList, newOwnerFUpdate)
 	}
 
-	return metadataList, nil
+	return assetsUpdatesFList, nil
 }

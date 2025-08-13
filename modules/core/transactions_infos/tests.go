@@ -3,7 +3,7 @@ package transactions_infos
 import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -15,7 +15,7 @@ func TestTransactionInfo() {
 	defer database.CloseDatabaseConnection(dbInstance)
 
 	/*dbCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
-	cursor, err := dbCollection.Find(context.Background(), bson.M{"block_number": 12000058, "collection": "decentraland"})
+	cursor, err := dbCollection.Find(context.Background(), bson.M{"block_number": 12000058, "metaverse": "decentraland"})
 	if err != nil {
 		panic(err)
 	}
@@ -25,12 +25,12 @@ func TestTransactionInfo() {
 	if err != nil {
 		panic(err)
 	}*/
-	aTxHashes, err := getTransactionHashesFromDatabase(collections.CollectionDcl, dbInstance)
+	aTxHashes, err := getTransactionHashesFromDatabase(metaverses.MetaverseDcl, dbInstance)
 	if err != nil {
 		panic(err)
 	}
 
-	cltInfo := &collections.CollectionInfo{}
+	cltInfo := &metaverses.MetaverseInfo{}
 	cltInfoCollection := database.CollectionInstance(dbInstance, cltInfo)
 	err = cltInfoCollection.FirstWithCtx(context.Background(), bson.M{"name": "decentraland"}, cltInfo)
 	if err != nil {

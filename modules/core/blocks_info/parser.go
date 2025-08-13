@@ -4,7 +4,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"context"
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/helpers"
 	"errors"
 	"fmt"
@@ -56,18 +56,18 @@ func fetchBlocksTimestamps(blockNumbers []uint64, blockchain string) ([]*helpers
 	return blockInfos, nil
 }
 
-func saveBlockTimestamps(blockInfos []*helpers.EthBlockInfo, collection collections.Collection) error {
+func saveBlockTimestamps(blockInfos []*helpers.EthBlockInfo, metaverse metaverses.MetaverseName) error {
 	dbInstance, err := database.NewDatabaseConnection()
 	if err != nil {
 		return err
 	}
 	defer database.CloseDatabaseConnection(dbInstance)
 
-	err = saveBlockTimestampInDatabase(blockInfos, collection, dbInstance)
+	err = saveBlockTimestampInDatabase(blockInfos, metaverse, dbInstance)
 	return err
 }
 
-func parseBlockTimestamps(blockNumbers []uint64, blockchain string, collection collections.Collection, wg *sync.WaitGroup) error {
+func parseBlockTimestamps(blockNumbers []uint64, blockchain string, metaverse metaverses.MetaverseName, wg *sync.WaitGroup) error {
 	blockInfos, err := fetchBlocksTimestamps(blockNumbers, blockchain)
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func parseBlockTimestamps(blockNumbers []uint64, blockchain string, collection c
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_ = saveBlockTimestamps(blockInfos, collection)
+		_ = saveBlockTimestamps(blockInfos, metaverse)
 	}()
 
 	return nil

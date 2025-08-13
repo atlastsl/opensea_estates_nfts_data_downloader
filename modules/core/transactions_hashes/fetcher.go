@@ -1,7 +1,7 @@
 package transactions_hashes
 
 import (
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/helpers"
 	"encoding/json"
 	"errors"
@@ -17,11 +17,11 @@ import (
 
 var specificBnDict SpecificBnDict
 
-func getTopicBoundariesForLogs(collection collections.Collection, dbInstance *mongo.Database) (map[string]*collections.CollectionInfoLogTopic, error) {
-	if slices.Contains(collections.Collections, collection) {
-		return getTopicBoundariesForLogsFromDatabase(collection, dbInstance)
+func getTopicBoundariesForLogs(metaverse metaverses.MetaverseName, dbInstance *mongo.Database) (map[string]*metaverses.MetaverseInfoLogTopic, error) {
+	if slices.Contains(metaverses.Metaverses, metaverse) {
+		return getTopicBoundariesForLogsFromDatabase(metaverse, dbInstance)
 	}
-	return make(map[string]*collections.CollectionInfoLogTopic), nil
+	return make(map[string]*metaverses.MetaverseInfoLogTopic), nil
 }
 
 func getSpecificBnDict() (*SpecificBnDict, error) {
@@ -38,10 +38,10 @@ func getSpecificBnDict() (*SpecificBnDict, error) {
 	return &specificBnDict, nil
 }
 
-func getStartBnInterval(collection collections.Collection, logTopicInterval *collections.CollectionInfoLogTopic, latestFetchedBlockNumber uint64) []uint64 {
+func getStartBnInterval(metaverse metaverses.MetaverseName, logTopicInterval *metaverses.MetaverseInfoLogTopic, latestFetchedBlockNumber uint64) []uint64 {
 	defaultStartBnInterval := []uint64{latestFetchedBlockNumber + 1, 0}
-	if logTopicInterval.Blockchain == collections.PolygonBlockchain {
-		if collection == collections.CollectionSnd {
+	if logTopicInterval.Blockchain == metaverses.PolygonBlockchain {
+		if metaverse == metaverses.MetaverseSnd {
 			dict, err := getSpecificBnDict()
 			if err != nil {
 				return defaultStartBnInterval
@@ -50,13 +50,13 @@ func getStartBnInterval(collection collections.Collection, logTopicInterval *col
 			if !ok {
 				return defaultStartBnInterval
 			}
-			blockchainColDict, ok := blockchainDict[string(collection)]
+			blockchainColDict, ok := blockchainDict[string(metaverse)]
 			if !ok {
 				return defaultStartBnInterval
 			}
 			for i, item := range blockchainColDict {
 				if !item.Done {
-					(*dict)[logTopicInterval.Blockchain][string(collection)][i].Done = true
+					(*dict)[logTopicInterval.Blockchain][string(metaverse)][i].Done = true
 					return []uint64{item.Start, item.End}
 				}
 			}
@@ -86,13 +86,13 @@ func getLogsBuildParams(addresses []string, topic string, bnInterval []uint64) (
 }
 
 func getLogsBuildBaseUrl(blockchain string) string {
-	if blockchain == collections.PolygonBlockchain {
+	if blockchain == metaverses.PolygonBlockchain {
 		return "https://polygon-mainnet.infura.io/v3"
 	}
 	return "https://mainnet.infura.io/v3"
 }
 
-func getEthEventsLogsReq(logTopicInfo *collections.CollectionInfoLogTopic, bnInterval []uint64) (*helpers.EthResponse, error) {
+func getEthEventsLogsReq(logTopicInfo *metaverses.MetaverseInfoLogTopic, bnInterval []uint64) (*helpers.EthResponse, error) {
 	if logTopicInfo == nil || len(logTopicInfo.Contracts) == 0 {
 		return nil, errors.New("no token contracts found")
 	}
@@ -110,7 +110,7 @@ func getEthEventsLogsReq(logTopicInfo *collections.CollectionInfoLogTopic, bnInt
 	return response, err
 }
 
-func handleEthEventsResponse(logTopicInfo *collections.CollectionInfoLogTopic, response *helpers.EthResponse) ([]*helpers.EthEventLog, []uint64, error) {
+func handleEthEventsResponse(logTopicInfo *metaverses.MetaverseInfoLogTopic, response *helpers.EthResponse) ([]*helpers.EthEventLog, []uint64, error) {
 	if response.Error != nil {
 		message := "an error occurred on fetching data from Infura API !"
 		if reflect.TypeOf(response.Error).Kind() == reflect.Map {
@@ -157,8 +157,8 @@ func handleEthEventsResponse(logTopicInfo *collections.CollectionInfoLogTopic, r
 	}
 }
 
-func getEthEventsLogsOfTopic(collection collections.Collection, logTopicInfo *collections.CollectionInfoLogTopic, latestFetchedBlockNumber uint64) ([]*helpers.EthEventLog, uint64, error) {
-	startBnInterval := getStartBnInterval(collection, logTopicInfo, latestFetchedBlockNumber)
+func getEthEventsLogsOfTopic(metaverse metaverses.MetaverseName, logTopicInfo *metaverses.MetaverseInfoLogTopic, latestFetchedBlockNumber uint64) ([]*helpers.EthEventLog, uint64, error) {
+	startBnInterval := getStartBnInterval(metaverse, logTopicInfo, latestFetchedBlockNumber)
 
 	response, err := getEthEventsLogsReq(logTopicInfo, startBnInterval)
 	if err != nil {

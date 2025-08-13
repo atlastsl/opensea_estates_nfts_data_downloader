@@ -3,7 +3,7 @@ package transactions_infos
 import (
 	"context"
 	"decentraland_data_downloader/modules/app/database"
-	"decentraland_data_downloader/modules/core/collections"
+	"decentraland_data_downloader/modules/core/metaverses"
 	"decentraland_data_downloader/modules/core/transactions_hashes"
 	"decentraland_data_downloader/modules/helpers"
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,20 +12,20 @@ import (
 	"slices"
 )
 
-func getNftCollectionInfo(collection collections.Collection, dbInstance *mongo.Database) (*collections.CollectionInfo, error) {
-	cltInfo := &collections.CollectionInfo{}
-	dbCollection := database.CollectionInstance(dbInstance, cltInfo)
-	err := dbCollection.FirstWithCtx(context.Background(), bson.M{"name": string(collection)}, cltInfo)
+func getMetaverseInfo(metaverse metaverses.MetaverseName, dbInstance *mongo.Database) (*metaverses.MetaverseInfo, error) {
+	mtvInfo := &metaverses.MetaverseInfo{}
+	dbCollection := database.CollectionInstance(dbInstance, mtvInfo)
+	err := dbCollection.FirstWithCtx(context.Background(), bson.M{"name": string(metaverse)}, mtvInfo)
 	if err != nil {
 		return nil, err
 	}
-	return cltInfo, nil
+	return mtvInfo, nil
 }
 
-func getTransactionHashesFromDatabase(collection collections.Collection, dbInstance *mongo.Database) (map[string][]*transactionInput, error) {
-	cltInfo := &collections.CollectionInfo{}
+func getTransactionHashesFromDatabase(metaverse metaverses.MetaverseName, dbInstance *mongo.Database) (map[string][]*transactionInput, error) {
+	cltInfo := &metaverses.MetaverseInfo{}
 	dbCollection := database.CollectionInstance(dbInstance, cltInfo)
-	err := dbCollection.FirstWithCtx(context.Background(), bson.M{"name": string(collection)}, cltInfo)
+	err := dbCollection.FirstWithCtx(context.Background(), bson.M{"name": string(metaverse)}, cltInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func getTransactionHashesFromDatabase(collection collections.Collection, dbInsta
 
 		txHashCollection := database.CollectionInstance(dbInstance, &transactions_hashes.TransactionHash{})
 		opts := &options.FindOptions{Sort: bson.M{"block_timestamp": 1}}
-		cursor, err := txHashCollection.Find(context.Background(), bson.M{"collection": string(collection), "blockchain": blockchain, "transaction_hash": bson.M{"$nin": helpers.BSONStringA(logsExistingHashesStr)}}, opts.SetLimit(70000))
+		cursor, err := txHashCollection.Find(context.Background(), bson.M{"metaverse": string(metaverse), "blockchain": blockchain, "transaction_hash": bson.M{"$nin": helpers.BSONStringA(logsExistingHashesStr)}}, opts.SetLimit(100000))
 		if err != nil {
 			return nil, err
 		}
