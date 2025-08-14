@@ -43,9 +43,9 @@ func getDistinctBlockNumbersForBlockchain(metaverse metaverses.MetaverseName, bl
 	if err != nil {
 		return nil, err
 	}
-	if len(results) == 0 {
-		return nil, errors.New("no results found")
-	}
+	//if len(results) == 0 {
+	//	return nil, errors.New("no results found")
+	//}
 	tmp := results[0]["blockNumbers"]
 	if reflect.TypeOf(tmp).Kind() != reflect.Slice {
 		return nil, errors.New("block numbers is not a slice")
