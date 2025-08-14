@@ -46,18 +46,20 @@ func getDistinctBlockNumbersForBlockchain(metaverse metaverses.MetaverseName, bl
 	//if len(results) == 0 {
 	//	return nil, errors.New("no results found")
 	//}
-	tmp := results[0]["blockNumbers"]
-	if reflect.TypeOf(tmp).Kind() != reflect.Slice {
-		return nil, errors.New("block numbers is not a slice")
-	}
 	blockNumbers := make([]uint64, 0)
-	for _, item := range tmp.(primitive.A) {
-		if reflect.TypeOf(item).Kind() == reflect.Int {
-			blockNumbers = append(blockNumbers, uint64(item.(int64)))
-		} else if reflect.TypeOf(item).Kind() == reflect.Int32 {
-			blockNumbers = append(blockNumbers, uint64(item.(int32)))
-		} else if reflect.TypeOf(item).Kind() == reflect.Int64 {
-			blockNumbers = append(blockNumbers, uint64(item.(int64)))
+	if len(results) > 0 {
+		tmp := results[0]["blockNumbers"]
+		if reflect.TypeOf(tmp).Kind() != reflect.Slice {
+			return nil, errors.New("block numbers is not a slice")
+		}
+		for _, item := range tmp.(primitive.A) {
+			if reflect.TypeOf(item).Kind() == reflect.Int {
+				blockNumbers = append(blockNumbers, uint64(item.(int64)))
+			} else if reflect.TypeOf(item).Kind() == reflect.Int32 {
+				blockNumbers = append(blockNumbers, uint64(item.(int32)))
+			} else if reflect.TypeOf(item).Kind() == reflect.Int64 {
+				blockNumbers = append(blockNumbers, uint64(item.(int64)))
+			}
 		}
 	}
 	return blockNumbers, nil
