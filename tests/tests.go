@@ -1,7 +1,7 @@
 package main
 
 import (
-	"decentraland_data_downloader/modules/core/transactions_hashes"
+	"decentraland_data_downloader/modules/core/blocks_info"
 	"github.com/joho/godotenv"
 )
 
@@ -12,9 +12,9 @@ func main() {
 	}
 
 	//movements.DatabaseTest()
-	//blocks_info.TestBlocksInfo()
+	blocks_info.TestBlocksInfo()
 	//collections.SaveInfo(collections.DecentralandCollectionInfo)
-	transactions_hashes.TestTransactionHashes()
+	//transactions_hashes.TestTransactionHashes()
 	//transactions_infos.TestTransactionInfo()
 	//collections.SaveCurrencies()
 	//collections.SaveInfo(collections.CryptoVoxelsCollectionInfo)
