@@ -150,5 +150,5 @@ func parseTransactions(transactions []*TransactionFull, params map[string]any, d
 	//	operations = append(operations, tOperations...)
 	//}
 
-	return nil
+	//return nil
 }

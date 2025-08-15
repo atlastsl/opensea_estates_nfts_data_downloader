@@ -33,12 +33,12 @@ func TestOperations() {
 
 	/*println("a")*/
 
-	transactions, err := getTransactionInfoByBlockNumber("ethereum", 5284297, dbInstance)
+	transactions, err := getTransactionInfoByBlockNumber("ethereum", 6675885, dbInstance)
 	if err != nil {
 		panic(err)
 	}
 
-	err = parseTransactions(transactions, additionalData, nil, nil)
+	err = parseTransactions(transactions, additionalData, dbInstance, nil)
 	if err != nil {
 		panic(err)
 	}

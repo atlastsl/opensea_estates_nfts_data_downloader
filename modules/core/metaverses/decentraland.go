@@ -428,7 +428,7 @@ func saveDclFocalPoints(focalPoints []*DecentralandFocalPoint, dbInstance *mongo
 }
 
 func getterDclRequestOrder() ([]string, error) {
-	assetsTake, landsMax, estatesMax := 1000, 100000, 6000
+	assetsTake, landsMax, estatesMax := 1000, 100000, 7000
 	tasks := []string{"extra"}
 	for i := 39000; i < landsMax; i += assetsTake {
 		task := fmt.Sprintf("asset:land:%d,%d", i, i+assetsTake)
