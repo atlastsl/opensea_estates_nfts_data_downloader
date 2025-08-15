@@ -1,7 +1,7 @@
 package main
 
 import (
-	"decentraland_data_downloader/modules/core/blocks_info"
+	"decentraland_data_downloader/modules/core/operations"
 	"github.com/joho/godotenv"
 )
 
@@ -12,14 +12,14 @@ func main() {
 	}
 
 	//movements.DatabaseTest()
-	blocks_info.TestBlocksInfo()
+	//blocks_info.TestBlocksInfo()
 	//collections.SaveInfo(collections.DecentralandCollectionInfo)
 	//transactions_hashes.TestTransactionHashes()
 	//transactions_infos.TestTransactionInfo()
-	//collections.SaveCurrencies()
+	//metaverses.SaveCurrencies()
 	//collections.SaveInfo(collections.CryptoVoxelsCollectionInfo)
 	//collections.SaveInfo(collections.TheSandboxCollectionInfo)
-	//operations.TestOperations()
+	operations.TestOperations()
 
 	//metaverses.MetaverseTest()
 }

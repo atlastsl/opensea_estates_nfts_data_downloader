@@ -22,18 +22,18 @@ func formatAssetsUpdatesList(updates []*assetUpdate, mtvInfo *metaverses.Metaver
 	for _, updateItem := range updates {
 		wg.Add(1)
 		go func() {
-			metadataListI := make([]*assetUpdateFormatted, 0)
+			assetUpdatedListI := make([]*assetUpdateFormatted, 0)
 			var err error
 			if metaverses.MetaverseName(mtvInfo.Name) == metaverses.MetaverseDcl {
-				metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, mtvInfo, dbInstance)
+				assetUpdatedListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, mtvInfo, dbInstance)
 			} else {
 				err = invalidCollectionError
 			}
 			wLocker.Lock()
 			if err != nil {
 				allErrors = append(allErrors, err)
-			} else if len(metadataListI) > 0 {
-				fAllUpdates = append(fAllUpdates, metadataListI...)
+			} else if len(assetUpdatedListI) > 0 {
+				fAllUpdates = append(fAllUpdates, assetUpdatedListI...)
 			}
 			wLocker.Unlock()
 			wg.Done()
@@ -45,18 +45,18 @@ func formatAssetsUpdatesList(updates []*assetUpdate, mtvInfo *metaverses.Metaver
 		return nil, allErrors[0]
 	}
 
-	//allMetadata := make([]*assetUpdateFormatted, 0)
+	//fAllUpdates := make([]*assetUpdateFormatted, 0)
 	//for _, updateItem := range updates {
-	//	metadataListI := make([]*assetUpdateFormatted, 0)
+	//	assetUpdatedListI := make([]*assetUpdateFormatted, 0)
 	//	if metaverses.MetaverseName(mtvInfo.Name) == metaverses.MetaverseDcl {
-	//		metadataListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, mtvInfo, dbInstance)
+	//		assetUpdatedListI, err = dclConvertAssetUpdateToMetadataUpdates(updateItem, allAssets, mtvInfo, dbInstance)
 	//	} else {
 	//		err = invalidCollectionError
 	//	}
 	//	if err != nil {
 	//		return nil, err
-	//	} else if len(metadataListI) > 0 {
-	//		allMetadata = append(allMetadata, metadataListI...)
+	//	} else if len(assetUpdatedListI) > 0 {
+	//		fAllUpdates = append(fAllUpdates, assetUpdatedListI...)
 	//	}
 	//}
 
@@ -150,5 +150,5 @@ func parseTransactions(transactions []*TransactionFull, params map[string]any, d
 	//	operations = append(operations, tOperations...)
 	//}
 
-	//return nil
+	return nil
 }

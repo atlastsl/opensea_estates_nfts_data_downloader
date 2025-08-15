@@ -158,3 +158,14 @@ type CurrencyPrice struct {
 	Volume           float64   `bson:"volume,omitempty"`
 	MarketCap        float64   `bson:"market_cap,omitempty"`
 }
+
+type CurrencyHPrice struct { // Our example struct, you can use "-" to ignore a field
+	StartDate string  `csv:"Start"`
+	EndDate   string  `csv:"End"`
+	Open      float64 `csv:"Open"`
+	High      float64 `csv:"High"`
+	Low       float64 `csv:"Low"`
+	Close     float64 `csv:"Close"`
+	Volume    float64 `csv:"Volume"`
+	MarketCap float64 `csv:"Market Cap"`
+}

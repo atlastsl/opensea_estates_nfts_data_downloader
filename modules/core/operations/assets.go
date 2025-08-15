@@ -76,5 +76,5 @@ func findAllAssets(mtvInfo *metaverses.MetaverseInfo, txLogsInfos []*Transaction
 	//	assets = append(assets, asset)
 	//}
 
-	return assets, nil
+	//return assets, nil
 }
